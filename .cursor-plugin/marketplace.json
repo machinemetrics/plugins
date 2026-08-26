@@ -1,0 +1,31 @@
+{
+  "name": "machinemetrics",
+  "owner": {
+    "name": "MachineMetrics",
+    "email": "support@machinemetrics.com",
+    "url": "https://www.machinemetrics.com"
+  },
+  "metadata": {
+    "description": "Public MachineMetrics plugins for Claude Code, Cursor, and Codex",
+    "version": "0.1.0",
+    "pluginRoot": "plugins"
+  },
+  "plugins": [
+    {
+      "name": "hello-world",
+      "source": "./hello-world",
+      "description": "Confirm that the MachineMetrics plugin marketplace is set up correctly, and show where to get help.",
+      "version": "0.1.0",
+      "author": {
+        "name": "MachineMetrics",
+        "email": "support@machinemetrics.com"
+      },
+      "license": "MIT",
+      "keywords": [
+        "machinemetrics",
+        "hello-world",
+        "getting-started"
+      ]
+    }
+  ]
+}

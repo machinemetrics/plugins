@@ -1,0 +1,23 @@
+{
+  "name": "machinemetrics",
+  "interface": {
+    "displayName": "MachineMetrics"
+  },
+  "plugins": [
+    {
+      "name": "hello-world",
+      "source": {
+        "source": "local",
+        "path": "./plugins/hello-world"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_USE",
+        "products": [
+          "CODEX"
+        ]
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

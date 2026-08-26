@@ -1,0 +1,25 @@
+{
+  "name": "hello-world",
+  "version": "0.1.0",
+  "description": "Confirm that the MachineMetrics plugin marketplace is set up correctly, and show where to get help.",
+  "author": {
+    "name": "MachineMetrics",
+    "email": "support@machinemetrics.com",
+    "url": "https://github.com/machinemetrics"
+  },
+  "homepage": "https://github.com/machinemetrics/plugins/tree/main/plugins/hello-world",
+  "repository": "https://github.com/machinemetrics/plugins",
+  "license": "MIT",
+  "keywords": ["machinemetrics", "hello-world", "getting-started"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Hello World",
+    "shortDescription": "Check that MachineMetrics plugins are working",
+    "longDescription": "A minimal plugin that confirms the MachineMetrics plugin marketplace is registered and installing correctly, and points to support.",
+    "developerName": "MachineMetrics",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive"],
+    "websiteURL": "https://www.machinemetrics.com",
+    "defaultPrompt": ["Check that the MachineMetrics plugin is working."]
+  }
+}
