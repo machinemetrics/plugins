@@ -34,10 +34,10 @@
       "source": {
         "source": "github",
         "repo": "machinemetrics/carbide-plugin",
-        "ref": "v0.1.0"
+        "ref": "v0.2.1"
       },
       "description": "Build an application for your shop on MachineMetrics: specify it conversationally, build it with Carbide components, store data in Carbide Data, then deploy it on your own infrastructure and register it with MachineMetrics.",
-      "version": "0.1.0",
+      "version": "0.2.1",
       "author": {
         "name": "MachineMetrics",
         "email": "support@machinemetrics.com"
