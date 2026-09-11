@@ -22,12 +22,19 @@ Never hand-edit anything under it. The next release replaces the directory whole
 edit is lost without warning. Changes belong upstream, in the plugin itself, and arrive here
 with the next release.
 
-A release arrives as a pull request, and that diff is the customer-visible change. Read it as
-one: skill prose is what an agent will act on in somebody else's shop.
+A release is pushed straight to `main`. This repository is public, so a pull request here
+would publish the review discussion along with the artifact, and it would review a generated
+directory rather than an authored change. The release is reviewed upstream, before the tag
+exists.
+
+What is not skipped is the diff. Whoever releases reads `git diff` before committing, because
+that diff is the customer-visible change: skill prose is what an agent will act on in
+somebody else's shop. Commit messages here are as public as the README. Say what the release
+does, nothing about how it was made.
 
 ## Checks
 
-One workflow, `.github/workflows/validate.yml`, runs on every pull request and on `main`:
+One workflow, `.github/workflows/validate.yml`, runs on every push to `main`:
 
 - `claude plugin validate` on the marketplace and on each plugin directory.
 - `.github/scripts/check-catalogs.mjs`, which checks the three catalogs against the tree:

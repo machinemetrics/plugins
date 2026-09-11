@@ -1,12 +1,14 @@
 name: Validate
 
-# Releases arrive here as pull requests carrying a generated plugin directory
+# Releases are pushed straight to main, carrying a generated plugin directory
 # and three updated catalogs. Every other gate runs in the plugin's own
-# repository, so this is the only check between that artifact and main.
+# repository, so this is the last check on what a customer installs. It runs
+# after the push rather than before it, which is why the release script
+# validates the placed artifact itself before anything is committed.
 on:
-  pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   validate:
