@@ -1,0 +1,34 @@
+name: Validate
+
+# Releases arrive here as pull requests carrying a generated plugin directory
+# and three updated catalogs. Every other gate runs in the plugin's own
+# repository, so this is the only check between that artifact and main.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      # Shape of the Claude marketplace and of each plugin manifest.
+      # `validate` reads local files and needs no credentials.
+      - run: npm install -g @anthropic-ai/claude-code
+      - run: claude plugin validate .
+      - name: Validate each plugin
+        run: |
+          shopt -s nullglob
+          for dir in plugins/*/; do
+            echo "== $dir"
+            claude plugin validate "$dir"
+          done
+
+      # The Cursor and Codex catalogs, which the CLI does not read, and the
+      # agreement between every catalog entry and the manifest it points at.
+      - run: node .github/scripts/check-catalogs.mjs

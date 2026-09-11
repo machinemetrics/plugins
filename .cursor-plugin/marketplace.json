@@ -1,0 +1,13 @@
+{
+  "name": "machinemetrics",
+  "owner": {
+    "name": "MachineMetrics",
+    "email": "support@machinemetrics.com",
+    "url": "https://www.machinemetrics.com"
+  },
+  "metadata": {
+    "description": "Public MachineMetrics plugins for Claude Code, Cursor, and Codex",
+    "pluginRoot": "plugins"
+  },
+  "plugins": []
+}

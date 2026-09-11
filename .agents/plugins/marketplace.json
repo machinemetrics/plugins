@@ -1,0 +1,7 @@
+{
+  "name": "machinemetrics",
+  "interface": {
+    "displayName": "MachineMetrics"
+  },
+  "plugins": []
+}
