@@ -1,0 +1,36 @@
+{
+  "name": "carbide",
+  "version": "0.16.1",
+  "description": "Build an application for your shop on MachineMetrics: specify it conversationally, build it with Carbide components, store data in Carbide Data when it needs storage, then deploy it on your own infrastructure and register it with MachineMetrics.",
+  "author": {
+    "name": "MachineMetrics",
+    "email": "support@machinemetrics.com",
+    "url": "https://github.com/machinemetrics"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/machinemetrics/plugins/tree/main/plugins/carbide",
+  "repository": "https://github.com/machinemetrics/plugins",
+  "keywords": [
+    "machinemetrics",
+    "carbide",
+    "manufacturing",
+    "mes",
+    "react",
+    "app-builder"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Carbide",
+    "shortDescription": "Build a shop-floor app that runs inside MachineMetrics",
+    "longDescription": "Specify a shop-floor application conversationally, build its interface with Carbide components, store data in Carbide Data when it needs storage, then deploy it on your own infrastructure and register it with MachineMetrics. Support for this host is experimental: Claude Code is the officially supported host.",
+    "developerName": "MachineMetrics",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Interactive"
+    ],
+    "websiteURL": "https://www.machinemetrics.com",
+    "defaultPrompt": [
+      "Build me a read-only OperatorView tab showing today's utilization for the machine the operator is standing at."
+    ]
+  }
+}
