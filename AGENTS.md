@@ -41,17 +41,12 @@ has moved past, is the way that goes wrong. Run it locally with `node
 
 Keep this proportionate. One plugin and three catalogs do not need more than this.
 
-## Before the first release
-
-The catalogs are empty and the README already describes `carbide`, so this repository should
-not be published until the first release has merged.
+## Where reports go
 
 Issues and pull requests stay disabled. Customers reach us at support@machinemetrics.com,
 which is where product support already lives, so a report lands with people who can act on it
 rather than in a queue nobody owns. The README says so, and SECURITY.md says it again for
 vulnerabilities.
-
-Remove this section once the first release has merged.
 
 ## Rules
 
