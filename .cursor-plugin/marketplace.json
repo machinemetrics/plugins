@@ -9,5 +9,27 @@
     "description": "Public MachineMetrics plugins for Claude Code, Cursor, and Codex",
     "pluginRoot": "plugins"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "carbide",
+      "description": "Build an application for your shop on MachineMetrics: specify it conversationally, build it with Carbide components, store data in Carbide Data when it needs storage, then deploy it on your own infrastructure and register it with MachineMetrics.",
+      "author": {
+        "name": "MachineMetrics",
+        "email": "support@machinemetrics.com"
+      },
+      "homepage": "https://github.com/machinemetrics/plugins/tree/main/plugins/carbide",
+      "repository": "https://github.com/machinemetrics/plugins",
+      "license": "MIT",
+      "keywords": [
+        "machinemetrics",
+        "carbide",
+        "manufacturing",
+        "mes",
+        "react",
+        "app-builder"
+      ],
+      "source": "./carbide",
+      "version": "0.16.1"
+    }
+  ]
 }
