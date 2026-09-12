@@ -27,10 +27,31 @@ would publish the review discussion along with the artifact, and it would review
 directory rather than an authored change. The release is reviewed upstream, before the tag
 exists.
 
-What is not skipped is the diff. Whoever releases reads `git diff` before committing, because
-that diff is the customer-visible change: skill prose is what an agent will act on in
-somebody else's shop. Commit messages here are as public as the README. Say what the release
-does, nothing about how it was made.
+What is not skipped is the diff. Whoever releases reads it before committing, because that
+diff is the customer-visible change: skill prose is what an agent will act on in somebody
+else's shop.
+
+Stage first, and name the exact paths. A plain `git diff` shows nothing of an untracked
+`plugins/carbide`, which is every first release and any release that adds a file, and staging
+a whole catalog directory would sweep an unrelated file into the release:
+
+```bash
+git add plugins/carbide \
+  .claude-plugin/marketplace.json .cursor-plugin/marketplace.json .agents/plugins/marketplace.json
+git diff --staged -- plugins/carbide \
+  .claude-plugin/marketplace.json .cursor-plugin/marketplace.json .agents/plugins/marketplace.json
+git commit -m "Publish carbide <x.y.z>" -- plugins/carbide \
+  .claude-plugin/marketplace.json .cursor-plugin/marketplace.json .agents/plugins/marketplace.json
+git push origin HEAD:main
+```
+
+The release script prints that list, so paste it rather than typing it. It also refuses to run
+unless this checkout has an origin, is on `main`, and holds nothing `origin/main` does not: an
+unpushed commit here would be published by the release push, and the staged diff cannot show it
+because it is already committed.
+
+Commit messages here are as public as the README. Say what the release does, nothing about how
+it was made.
 
 ## Checks
 
