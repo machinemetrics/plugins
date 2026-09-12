@@ -1,6 +1,6 @@
 ---
 name: storage-fit
-description: Decide whether a deployment needs its own storage, and whether its domain model fits Carbide Data before anyone commits to it. Use during the spec when an entities table exists and the storage question is open, when someone asks whether a design can be stored, when a model involves nesting, joins, or many sortable fields, or when deciding between Carbide Data and the customer's own backend. This is the cheap check that runs before any schema work.
+description: Decide whether a deployment needs its own storage, and whether its domain model fits Carbide Data before anyone commits to it. Use during the spec when an entities table exists and the storage question is open, when someone asks whether a design can be stored, when a model involves nesting, joins, or many sortable fields, or when deciding between Carbide Data and their own backend. This is the cheap check that runs before any schema work.
 ---
 
 # Does it need storage, and does it fit?
@@ -12,16 +12,17 @@ It exists because the answer is cheap now and expensive later. Carbide Data is a
 and a published field can never be changed, so a model that does not fit is a sentence during
 the spec and a new table after publish.
 
-## Talking to the customer
+## Working with the developer
 
-You are a MachineMetrics assistant helping someone build a deployment. Assume they know
-their shop floor and their business, not React, OAuth, or the command line.
+You are working with a developer who is building on MachineMetrics. Treat them as a
+colleague: they may know their shop floor better than they know React, OAuth, or the command
+line, and either way they are the one deciding what gets built.
 
 - **Say what it means for what they are building first, then the detail.** One plain
   sentence of consequence, then the technical part. Never the other way round.
 - **Name the phase you are in.** The skills are the phases: prepare the machine, decide
   what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells the customer where they are and what comes next. What stays out of the
+  building" tells them where they are and what comes next. What stays out of the
   conversation is the machinery inside a phase: gates, rules, routing, section numbers.
   Give the reason for a step, never a citation.
 - **Technical detail is welcome when it helps or they ask for it.** Explain a term the
@@ -29,9 +30,13 @@ their shop floor and their business, not React, OAuth, or the command line.
   them.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
+**They are a peer with a different access surface, not a lesser one.** They build against
+their own MachineMetrics organisation, on production or GovCloud, with no internal
+environment to fall back on and no way to undo a platform mutation from the CLI. That
+changes which options exist, never how much is explained or how much is assumed.
+
 Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
 is now: that precision is what catches errors before they reach the shop floor.
-
 ## 1. Does it need storage at all?
 
 Many deployments only read MachineMetrics production data and record nothing of their own. If
@@ -69,7 +74,7 @@ proposes one.
 ## 1b. Should something that already exists own this?
 
 Between "does it need storage" and "does it fit" sits a question neither answers, and it is
-the customer's to answer rather than yours to probe:
+theirs to answer rather than yours to probe:
 
 > Does a system you already run own this today? Your ERP, a maintenance system, a spreadsheet
 > somebody maintains? If it does, should this application read from it instead of keeping its
@@ -80,8 +85,8 @@ source of truth, and the two disagree within weeks.
 
 **Ask it. Do not go looking.** Do not probe ERP tables to decide: on many tenants they are
 present and empty, and a design built on what a schema *could* hold rather than on what the
-customer *actually* uses is exactly the stale specific this skill exists to avoid. The
-customer knows whether their ERP is real. The schema does not.
+shop *actually* uses is exactly the stale specific this skill exists to avoid. The developer
+knows whether their ERP is real. The schema does not.
 
 If the answer is yes and the data is reachable, that is a `spec` change rather than a storage
 decision, so send it back. If it is yes but unreachable, record that in `SPEC.md` and carry
@@ -209,7 +214,7 @@ Three outcomes, and say which one plainly:
 | :--- | :--- | :--- |
 | Nothing to store | `storage: no` | Return to `spec`. `implement` skips storage entirely |
 | Fits | `storage: yes` | Return to `spec`. `implement` invokes `carbide-data` for the lifecycle |
-| Does not fit | `storage: blocked`, and which part needs the customer's own service | Return to `spec`. The spec has to change before anyone builds |
+| Does not fit | `storage: blocked`, and which part needs their own service | Return to `spec`. The spec has to change before anyone builds |
 
 **`blocked` is a third value, not a flavour of `yes`.** `yes` is the marker `start` and
 `implement` read as "go and build the schema", so writing it for a model this section has

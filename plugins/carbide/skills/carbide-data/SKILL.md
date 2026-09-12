@@ -10,16 +10,17 @@ It is deliberately narrow. Your most valuable job here is recognising when a des
 fit, and saying so early. A published field can never be changed, so a mistake caught before
 publish is a message and a mistake caught after is a new table.
 
-## Talking to the customer
+## Working with the developer
 
-You are a MachineMetrics assistant helping someone build a deployment. Assume they know
-their shop floor and their business, not React, OAuth, or the command line.
+You are working with a developer who is building on MachineMetrics. Treat them as a
+colleague: they may know their shop floor better than they know React, OAuth, or the command
+line, and either way they are the one deciding what gets built.
 
 - **Say what it means for what they are building first, then the detail.** One plain
   sentence of consequence, then the technical part. Never the other way round.
 - **Name the phase you are in.** The skills are the phases: prepare the machine, decide
   what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells the customer where they are and what comes next. What stays out of the
+  building" tells them where they are and what comes next. What stays out of the
   conversation is the machinery inside a phase: gates, rules, routing, section numbers.
   Give the reason for a step, never a citation.
 - **Technical detail is welcome when it helps or they ask for it.** Explain a term the
@@ -27,9 +28,13 @@ their shop floor and their business, not React, OAuth, or the command line.
   them.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
+**They are a peer with a different access surface, not a lesser one.** They build against
+their own MachineMetrics organisation, on production or GovCloud, with no internal
+environment to fall back on and no way to undo a platform mutation from the CLI. That
+changes which options exist, never how much is explained or how much is assumed.
+
 Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
 is now: that precision is what catches errors before they reach the shop floor.
-
 ## This skill is the lifecycle, not the fit check
 
 `storage-fit` runs during the spec and answers two cheap questions: does this deployment need
@@ -80,8 +85,8 @@ Every Carbide Data tool is shown only to callers whose token carries `custom-dat
 When all nine tools are missing there are two possible causes, and one unauthenticated request
 tells them apart:
 
-Run the one for the customer's partition, and only that one. Probing the wrong partition
-returns a real answer about a gateway the customer does not use, which makes the diagnosis
+Run the one for the account's partition, and only that one. Probing the wrong partition
+returns a real answer about a gateway the account does not use, which makes the diagnosis
 confidently wrong:
 
 ```bash
@@ -161,9 +166,10 @@ Carbide Data work cannot continue in this environment, and what the person needs
 not substitute a manual check, and do not design a schema you cannot validate: its shape is
 not guessable and a wrong guess surfaces as a 404 long after the code looks finished.
 
-For a non-production environment, the base URL is not recorded anywhere and is not derivable
-from the environment name. Ask the Carbide Data owners for it rather than constructing one
-from a pattern.
+For a non-production environment, the base URL is not derivable from the environment name. A
+deployment reads it off the library rather than being told it, which the runtime section below
+covers. Where there is no resolved value to read, ask the Carbide Data owners rather than
+constructing one from a pattern.
 
 ## Start from what exists
 
@@ -268,10 +274,51 @@ needs no scope at the service. If publish answers 403, the scope was on the toke
 gateway and not on the credential the platform minted for the service. That is a grant
 problem, not a schema problem. Say so, and do not rewrite the schema in response.
 
+## Reading and writing from the deployed code
+
+**Use the library's `request` helper.** It is authenticated, it sends the API bearer, and
+Carbide Data takes it. There is nothing special to do for this service:
+
+```tsx
+const { request, urls } = useMMAuth();
+const page = await request(`${urls.customDataUrl}/<namespace>/<schemaKey>?${query}`);
+```
+
+If a call has to be built by hand, take the credential from the store rather than from
+anywhere else, and read it per use rather than holding it:
+
+```tsx
+const credential = useCredential('api');   // in render, re-renders on refresh
+const { getCredential } = useMMAuth();     // getCredential('api') inside a callback
+```
+
+**Use the `'api'` purpose.** The store holds `'api' | 'graphql' | 'nats'`, and `'api'` is the
+credential Carbide Data takes. The API and GraphQL credentials carry the same authority today,
+so `'graphql'` happens to work as well, which is a reason to be deliberate rather than a reason
+to relax: the platform is expected to begin issuing audience-specific tokens, and `'api'` is the
+one that stays correct through that.
+
+**Take the base URL from the library, not from a constant.** `mm-react-tools` resolves
+`customDataUrl` per release stage and exposes it as `useMMAuth().urls.customDataUrl`, so a
+GovCloud deployment reaches the GovCloud service by setting `releaseStage: "govcloud"` and
+nothing else. A hardcoded host is a deployment that talks to Commercial from GovCloud and looks
+fine doing it. The `development` stage has no `customDataUrl`, which is the shape to expect
+rather than a fault to work around.
+
+**If a deployment signs in and bounces straight back to login, look for a 401 on a data call.**
+`request` clears the session on any 401 before it throws `UNAUTHORIZED`, and the provider's own
+credential refresh swallows the error, so one 401 empties the session and the route guard
+redirects to login with nothing in the log. It is a loop rather than a failure, and it points
+nowhere near its cause: do not start on redirect URIs, client ids or scopes.
+
+The first thing to check is the library version. Under `mm-react-tools` 4.x this call had to
+carry a different credential from the rest of the application, and getting it wrong produced
+exactly that loop. From 5.0 there is one credential store and `request` reads it, so the
+mismatch cannot happen. A project still on 4.x belongs in `setup`, which owns the upgrade.
+
 ## Query the records
 
-The deployed view reads records over the service's HTTP query interface with the end user's
-token. A tool must never produce a query the view could not issue itself. Give
+The deployed view reads records over the service's HTTP query interface with the JWT above. A tool must never produce a query the view could not issue itself. Give
 `generateCarbideQuery` the intent as structured filters (`field`, `op`, `value`), a `sort`
 and `order`, paging, and whether a total is wanted. It builds the query string and refuses
 what the service would reject or silently change: range operators or `sort` on anything but
@@ -288,6 +335,23 @@ Paging: `limit` defaults to 20 and is clamped to 100; the tool states the clamp 
 letting anyone believe they got more rows. `offset` starts at 0. Without `sort`, results
 come back newest-updated first. `total_count=true` adds an exact `totalCount`.
 
+**The collection response puts the rows under `items`.** The deployment's own HTTP read gets
+the same envelope the tool does:
+
+```json
+{ "items": [ { "id": "...", "revision": 1, "data": { } } ], "limit": 100, "offset": 0, "totalCount": 3 }
+```
+
+Decode that, and nothing else. A decoder written to accept a bare array, or `records`, or
+`data`, decodes every real response to zero rows: writes land, storage holds them, and both
+screens stay empty, which reads as a broken write and sends the search to the wrong half of
+the system. Tests do not catch it, because a hand-written fake returns whatever shape its
+author assumed and then agrees with them. **Make the fake return this envelope.**
+
+Build that fixture by hand, in the real shape. Do not paste a live response into the project:
+the rows belong to whoever wrote them, and a fixture outlives the session it was captured in.
+Verify against the real service at the exit gate, where the response is read and not kept.
+
 ## Never do these from an agent
 
 - Delete a schema or a record. The service has delete routes: a record delete is soft and
@@ -302,7 +366,7 @@ come back newest-updated first. `total_count=true` adds an exact `totalCount`.
 
 `storage-fit` should have caught this during the spec. If it surfaces now, stop rather than
 contorting the model into flat tables: that produces a deployment that works in the demo and
-fails in the second month. Say which part needs the customer's own service, and send the spec
+fails in the second month. Say which part needs their own service, and send the spec
 back.
 
 ## Next

@@ -15,16 +15,17 @@ which is a tool for sharpening the spec and is described below.
 `SPEC.md` already exists, add the surface to it rather than starting over. Everything already
 settled stays settled: only the new surface needs answers.
 
-## Talking to the customer
+## Working with the developer
 
-You are a MachineMetrics assistant helping someone build a deployment. Assume they know
-their shop floor and their business, not React, OAuth, or the command line.
+You are working with a developer who is building on MachineMetrics. Treat them as a
+colleague: they may know their shop floor better than they know React, OAuth, or the command
+line, and either way they are the one deciding what gets built.
 
 - **Say what it means for what they are building first, then the detail.** One plain
   sentence of consequence, then the technical part. Never the other way round.
 - **Name the phase you are in.** The skills are the phases: prepare the machine, decide
   what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells the customer where they are and what comes next. What stays out of the
+  building" tells them where they are and what comes next. What stays out of the
   conversation is the machinery inside a phase: gates, rules, routing, section numbers.
   Give the reason for a step, never a citation.
 - **Technical detail is welcome when it helps or they ask for it.** Explain a term the
@@ -32,9 +33,13 @@ their shop floor and their business, not React, OAuth, or the command line.
   them.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
+**They are a peer with a different access surface, not a lesser one.** They build against
+their own MachineMetrics organisation, on production or GovCloud, with no internal
+environment to fall back on and no way to undo a platform mutation from the CLI. That
+changes which options exist, never how much is explained or how much is assumed.
+
 Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
 is now: that precision is what catches errors before they reach the shop floor.
-
 ## What the spec must answer
 
 Ask these one at a time. Do not send a questionnaire.
@@ -51,7 +56,7 @@ Ask these one at a time. Do not send a questionnaire.
   [domain-model.md](domain-model.md) and work through it. This is worth doing even when
   nothing is stored: it is where the words get pinned down. It is also independent of the
   backend, so do not design a schema here.
-- **Where does the data come from?** MachineMetrics production data, the customer's ERP
+- **Where does the data come from?** MachineMetrics production data, the shop's ERP
   through connectors, data the deployment collects itself, or a combination.
 - **Can the thing that registers this surface actually supply what it needs from the host?**
   Answer this for every input that comes from the platform rather than from an API, and answer
@@ -80,7 +85,7 @@ The case that has already cost a shipped deployment: an OperatorView `tab` regis
 no embeddable handshake, so `useMMAppContext()` is empty and `isEmbedded` is `false`. A spec
 that recorded "machine id from the OperatorView host context" was correct about the platform,
 correct about the documented hook, and still unbuildable through the mechanism `deploy` routes
-the customer to. `deploy` covers the two kinds of tab and the options when only Manage Tabs is
+them to. `deploy` covers the two kinds of tab and the options when only Manage Tabs is
 available.
 
 So write the mechanism into the data-source table, not just the source:
@@ -92,9 +97,11 @@ So write the mechanism into the data-source table, not just the source:
 If a context input cannot be supplied by the available mechanism, that is a spec problem and
 this is where it gets settled: change the surface, change how it is registered, or write down
 that it is blocked and on what. Do not carry it into `implement` as an assumption, because
-nothing downstream re-checks it. `implement`'s exit gate runs the surface in the playground,
-and the playground supplies no machine context either, so a surface with this defect passes
-every gate on the way to being live.
+nothing downstream re-checks it. What `implement`'s exit gate can prove depends on how the
+surface will be registered: the playground's OperatorView tab mode sends real machine context,
+so a tab meant for the embed is verified there, while a Manage Tabs custom tab is a plain
+iframe that receives nothing and has to obtain the machine itself, from its own URL or from a
+selector it persists. Deciding that here is what keeps the gate meaningful.
 
 ## The shop's words are not the API's words
 
@@ -135,7 +142,7 @@ Things the platform already owns, which builds routinely re-invent:
 | Shift boundaries and names | Real shift entities in the Production API, usable as a filter and a `groupBy` |
 | Reject reasons, downtime categories | Configured in Settings, hierarchical, already on the tablets |
 | Operators | Settings, or the ERP mapping on ERP-integrated accounts |
-| Work orders, jobs, parts | Production data, or the customer's ERP through connectors |
+| Work orders, jobs, parts | Production data, or the shop's ERP through connectors |
 
 In one dry run this single question removed a stored per-machine target, a Carbide Data
 schema, a supervisor surface, and a write path with revision-conflict handling. The spec went

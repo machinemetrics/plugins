@@ -14,16 +14,17 @@ near the top.
 Never report a step as done without checking its output. A missing prerequisite discovered at
 step 7 costs more than one discovered at step 1.
 
-## Talking to the customer
+## Working with the developer
 
-You are a MachineMetrics assistant helping someone build a deployment. Assume they know
-their shop floor and their business, not React, OAuth, or the command line.
+You are working with a developer who is building on MachineMetrics. Treat them as a
+colleague: they may know their shop floor better than they know React, OAuth, or the command
+line, and either way they are the one deciding what gets built.
 
 - **Say what it means for what they are building first, then the detail.** One plain
   sentence of consequence, then the technical part. Never the other way round.
 - **Name the phase you are in.** The skills are the phases: prepare the machine, decide
   what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells the customer where they are and what comes next. What stays out of the
+  building" tells them where they are and what comes next. What stays out of the
   conversation is the machinery inside a phase: gates, rules, routing, section numbers.
   Give the reason for a step, never a citation.
 - **Technical detail is welcome when it helps or they ask for it.** Explain a term the
@@ -31,12 +32,16 @@ their shop floor and their business, not React, OAuth, or the command line.
   them.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
+**They are a peer with a different access surface, not a lesser one.** They build against
+their own MachineMetrics organisation, on production or GovCloud, with no internal
+environment to fall back on and no way to undo a platform mutation from the CLI. That
+changes which options exist, never how much is explained or how much is assumed.
+
 Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
 is now: that precision is what catches errors before they reach the shop floor.
-
 ## 1. Establish the platform, and where Claude Code will run
 
-Most customers are on Windows. Some are on macOS or Linux. Everything below branches on this,
+Most developers building on MachineMetrics are on Windows. Some are on macOS or Linux. Everything below branches on this,
 so settle it before anything else, and do not assume.
 
 ### Windows
@@ -45,7 +50,7 @@ so settle it before anything else, and do not assume.
 distribution, and run every command from a shell in there. There is one supported Windows
 arrangement and this is it.
 
-Two other setups look reasonable and do not work. Recognise them quickly, because a customer
+Two other setups look reasonable and do not work. Recognise them quickly, because someone
 will arrive in one of them:
 
 - **The desktop app's WSL session.** Picking a distribution in the Code tab's environment picker
@@ -78,7 +83,7 @@ administrator question rather than something to work around.
 
 **The plugin does not come with them.** This is the step that gets missed, and it is invisible
 until it blocks everything: Claude Code inside the distribution has its own `~/.claude`, so
-the marketplace and the plugin are not there. A customer who installed the plugin on Windows,
+the marketplace and the plugin are not there. Someone who installed the plugin on Windows,
 read this page, and moved into WSL now has a session where `/carbide:start` does not exist.
 Say so before they make the move, not after. Re-add the marketplace and install the plugin
 inside the distribution, then come back to this skill in that session.
@@ -129,9 +134,9 @@ is usually a toggle rather than an install.
 /bin/bash -c "$(curl -fsSL https://machinemetrics-public.s3.us-west-2.amazonaws.com/MMDevCli/install_cli.sh)" && exec $SHELL -l
 ```
 
-**Offer the inspect-first form, and expect some customers to require it.** Piping a remote
+**Offer the inspect-first form, and expect some organisations to require it.** Piping a remote
 script straight into a shell is disallowed outright in some managed environments, and a
-customer who asks what it does is asking a reasonable question:
+developer who asks what it does is asking a reasonable question:
 
 ```bash
 curl -fsSL https://machinemetrics-public.s3.us-west-2.amazonaws.com/MMDevCli/install_cli.sh -o /tmp/install_cli.sh
@@ -144,15 +149,43 @@ Do not treat a request to read the script first as an obstacle. It is the same i
 The `exec $SHELL -l` matters: the installer puts `mmdev` in `~/.mmdev` and edits `PATH`, and
 without reloading the shell the next command will not find it.
 
-**Version matters more than it looks.** Releases before 0.53.3 stop on an interactive update
-prompt on every invocation, including `--version`, which no agent can answer. If `mmdev` appears
-to hang and produces nothing, that is what happened. Get past it with
-`MMDEV_NO_UPDATE=1 mmdev --version`, then upgrade in place with `mmdev update`. **`mmdev` is
-not distributed through npm or Homebrew**, so `npm i -g` and `brew install` are both dead
-ends. From 0.53.3 the check is skipped automatically when output is not a terminal, so
-agent-driven sessions are never prompted.
+### Versions, and this is where they are settled
 
-The installer is served from commercial infrastructure. If a customer on GovCloud cannot reach
+**Everything in these skills assumes the versions below**, and this is where they are required
+and upgraded. `start` runs the same checks while detecting state, but only to route here; it
+never upgrades anything and never adapts to what it finds. No other skill branches on a version
+at all, because instructions that fork on what someone happens to have installed are twice as
+long and wrong half the time. If a check comes back short, upgrade before going further rather
+than adapting the build to an old toolchain.
+
+| | Required | Check | Upgrade |
+| :--- | :--- | :--- | :--- |
+| `mmdev` | 1.0.0 | `MMDEV_NO_UPDATE=1 mmdev --version` | `mmdev update` |
+| `@machinemetrics/mm-react-tools` | 5.1.0 | `npm ls @machinemetrics/mm-react-tools` | `npm i @machinemetrics/mm-react-tools@latest` |
+| `@machinemetrics/mm-react-components` | 1.6.1 | `npm ls @machinemetrics/mm-react-components` | `npm i @machinemetrics/mm-react-components@latest` |
+
+The two libraries belong to a project, so check them in the project's `app/` directory. A
+machine with no project yet has nothing to check: a scaffold from `mmdev` 1.0.0 arrives on the
+right versions.
+
+**Use the scoped names.** `npm ls mm-react-tools` reports nothing rather than failing, which
+reads as "not installed" on a project that has it.
+
+`mmdev update` upgrades in place. **`mmdev` is not distributed through npm or Homebrew**, so
+`npm i -g` and `brew install` are both dead ends. If `mmdev` appears to hang and produce
+nothing, it is an old release stopping on an interactive update prompt that no agent can
+answer: get past it with `MMDEV_NO_UPDATE=1 mmdev --version`, then `mmdev update`.
+
+**An existing project may be behind, and upgrading it is not just a version bump.** Moving
+`mm-react-tools` from 4.x to 5.x moves config loading, provider wiring and every test double, and
+drops the client secret: `MMProvider` stops taking `clientSecret`, the auth context stops
+exposing `accessToken`, and `public/default.json` keeps only `releaseStage` and `clientId`. A
+GovCloud deployment from before 5.1 also carries `releaseStage: "production"` plus a pinned
+`urls`, which was the only correct shape then. Upgrade the library, set the stage to `govcloud`,
+and delete the override. Say what the upgrade touches before starting it, and run the project's
+own test suite afterwards.
+
+The installer is served from commercial infrastructure. If a developer on GovCloud cannot reach
 it, installing the CLI is a different procedure rather than a different URL, and that is worth
 escalating rather than working around.
 
@@ -178,9 +211,9 @@ distribution the equivalent is its own download-and-extract pair.
 
 **macOS**, where the problem mostly does not arise: Homebrew installs into a prefix the user
 already owns, so `brew install <package>` needs no root. If a formula does ask for it, that is
-the signal to hand the command to the customer rather than to work around it.
+the signal to hand the command over rather than to work around it.
 
-If a step truly requires root, hand the customer the command to run themselves in their own
+If a step truly requires root, hand over the command to run in their own
 terminal rather than attempting it from the session.
 
 ## 4. Authenticate
@@ -192,10 +225,10 @@ mmdev login
 **`mmdev oauth dev-init` comes after the environment is settled, in step 5, not here.** It
 writes a client for whichever environment is active, so running it first initialises the
 client for whatever was left over from last time, and switching afterwards leaves a client the
-customer's environment cannot use plus a second one on the tenant that nothing can delete.
+the environment cannot use, plus a second one on the account that nothing can delete.
 Authenticate now, choose the environment, then initialise.
 
-## 5. Confirm the customer's environment, and what has to agree with it
+## 5. Confirm which environment, and what has to agree with it
 
 ```bash
 mmdev environment list
@@ -205,36 +238,37 @@ mmdev environment switch
 Confirm which environment is active and say it out loud. A session pointed at the wrong
 environment produces data that looks plausible and is not theirs.
 
-**Switch to the customer's environment here rather than inheriting whatever was last active.**
-That is `production` for a Commercial customer and `govcloud` for a GovCloud one, and there is
-nothing to decide: those are the only environments a customer has. `staging` and `sandbox`
-exist inside MachineMetrics and a customer cannot reach them.
+**Switch to their environment here rather than inheriting whatever was last active.**
+That is `production` on Commercial and `govcloud` on GovCloud, and there is nothing to decide:
+those are the only two a MachineMetrics account reaches. `staging` and `sandbox` exist inside
+MachineMetrics and are not available here.
 
-**Do not ask which environment to target.** This plugin builds applications for customers, so
+**Do not ask which environment to target.** Everything built here runs on a real account, so
 the answer is always theirs. Asking invites a choice that does not exist and offers an
 environment the person cannot deploy to.
 
 This matters most at `deploy`, and it is not a preference. The hosting-and-authentication path
-(a public origin, a registered OAuth redirect, the platform API) exists only on the
-customer's environment. A deployment built against `staging` gets as far as being hosted and
+(a public origin, a registered OAuth redirect, the platform API) exists only on their own
+environment. A deployment built against `staging` gets as far as being hosted and
 publicly reachable and then cannot reach the API at all. A dry run shipped exactly that and
 found out only after the site was live.
 
 Two consequences worth saying out loud before switching:
 
-- **Mutations on the customer's environment are not reversible from the CLI.** `mmdev oauth`
+- **Mutations on a real environment are not reversible from the CLI.** `mmdev oauth`
   has `add`, `list` and `update` but **no delete**, so every client created there stays there.
   Name a deployment's client after the deployment and reuse it rather than minting a new one
   per attempt. A registered OperatorView tab is likewise visible to operators on tablets as
   soon as it is saved.
-- **An agent will hit approval prompts.** Creating a client, or reading the API, on the
-  customer's environment is a real production action, and a sandboxed agent is expected to be
+- **An agent will hit approval prompts.** Creating a client, or reading the API, on their
+  environment is a real production action, and a sandboxed agent is expected to be
   stopped and asked. Treat a denial as a request for confirmation rather than a failure, and
   do not look for a way around it.
 
-**The invariant.** Once a project exists, four things must name the customer's environment.
-Not merely agree with each other: **agree on the customer's.** Four legs consistently naming
-`staging` is a configuration that passes every internal check and cannot reach the customer's
+**The invariant.** Once a project exists, four things must name the same environment, and it
+must be the one the account actually uses. Not merely agree with each other: **agree on that
+one.** Four legs consistently naming `staging` is a configuration that passes every internal
+check and cannot reach the
 data, which is how a dry run got a deployment live before noticing.
 
 | | Where |
@@ -245,7 +279,7 @@ data, which is how a dry run got a deployment live before noticing.
 | **The gateway's environment** | Not printed anywhere. Establish it by asking, see `setup` |
 
 Environment **names** map to API and login URLs, and the mapping is not guessable from the
-name. The customer-facing pair is in partitions.md, alongside the note that a deployment sets
+name. The two real ones are in partitions.md, alongside the note that a deployment sets
 a `releaseStage` rather than pasting an `apiUrl`.
 
 **The fourth leg is the one that wastes days.** `mmdev environment list` says what the CLI
@@ -265,7 +299,7 @@ A fresh scaffold does not guarantee they agree. If they disagree, decide which i
 make the other two match. Noting the mismatch and moving on is not enough: it resurfaces later
 as an authentication failure that looks like anything except configuration.
 
-**Now** initialise the local OAuth client, with the customer's environment active:
+**Now** initialise the local OAuth client, with that environment active:
 
 ```bash
 mmdev environment list          # confirm the active one first
@@ -282,7 +316,7 @@ is written to `~/.mmrc/environments/<environment>/default.json` as well as the r
 again produces a **second** client, and the one a project gets depends on which environment
 was active when `dev-apply` ran. If `~/.mmrc` already holds a client for that environment it prints
 `local client already exists` and reuses it, so every project that developer scaffolds carries
-the same `LOCAL TEST` client. That is fine for local work. A deployment customers will use
+the same `LOCAL TEST` client. That is fine for local work. A deployment intended for real users
 should get its own client instead, which `implement` covers.
 
 **Do not run `mmdev oauth dev-apply` here.** It copies the client into a project's
@@ -292,9 +326,9 @@ first moment there is somewhere for it to write.
 
 ## 6. Connect the MachineMetrics gateway
 
-The plugin ships no gateway. The customer installs it and chooses their partition. That is
+The plugin ships no gateway. The developer installs it and chooses their partition. That is
 deliberate: a bundled server would take precedence over a connector they configured, so a
-customer on GovCloud would be silently pointed at Commercial.
+developer on GovCloud would be silently pointed at Commercial.
 
 ### Is it already connected, and to which partition?
 
@@ -341,7 +375,7 @@ Do not guess and do not default:
 
 > Are you on MachineMetrics Commercial, or GovCloud?
 
-GovCloud customers reach the platform at a `machinemetrics-us-gov.com` address and generally
+GovCloud accounts reach the platform at a `machinemetrics-us-gov.com` address and generally
 know it, because it is why they are on GovCloud. Everyone else is Commercial.
 
 ### Give them the step for their host
@@ -375,13 +409,13 @@ claude mcp add --transport http --scope local machinemetrics <gateway URL for th
 ```
 
 Do not paste the first form by reflex. `user` shadows a managed connector for every project
-on the machine and outlives the problem it was meant to fix, which for a customer who later
+on the machine and outlives the problem it was meant to fix, which for someone who later
 moves partition means unrelated projects silently talking to the wrong one.
 
 Three things to say when you offer this, because none of them are obvious:
 
 - **It takes precedence over a connector, permanently.** Scope order is local, project, user,
-  plugin-provided, then connector, so this entry wins over any connector the customer
+  plugin-provided, then connector, so this entry wins over any connector the developer
   configures later. That is the same shadowing that made bundling a gateway wrong in the first
   place. Prefer the connector when they can have one, and if they later move partitions or
   their organisation rolls out a managed connector, this has to be removed:
@@ -484,7 +518,7 @@ any row you could not run.
 | Node | `node --version` | `v24.` or newer |
 | Docker, if the work needs it | `docker run --rm hello-world` | `Hello from Docker!` |
 | **Windows only.** Docker WSL integration | `docker context ls` | A context resolves, no `cannot connect` |
-| mmdev present and current | `MMDEV_NO_UPDATE=1 mmdev --version` | `0.53.3` or newer. Without the variable a pre-0.53.3 CLI hangs here |
+| mmdev present and current | `MMDEV_NO_UPDATE=1 mmdev --version` | `1.0.0` or newer. Hanging with no output means an old release prompting to update: the variable gets past it |
 | Logged in | `mmdev environment list` | Lists environments and marks one active, no auth error |
 | Local OAuth client for the **active** environment | `node -p "!!require(process.env.HOME + '/.mmrc/default.json').clientId"` | `true`. The root file mirrors the active environment, so a client under some other environment does not count. Node is used rather than Python, which this contract does not require |
 | Gateway answers | Call a `knowledgeBase` tool with any string | A real response, not an error |
@@ -500,7 +534,7 @@ lsof -iTCP -sTCP:LISTEN -P | grep -E ':(3000|4[0-9]{3})( |$)'
 
 Two rows deserve extra suspicion because both fail while looking fine:
 
-- **`mmdev --version` hanging with no output** is the pre-0.53.3 update prompt, not a slow
+- **`mmdev --version` hanging with no output** is an old release's update prompt, not a slow
   machine. `MMDEV_NO_UPDATE=1` gets past it, `mmdev update` fixes it, and nothing downstream
   works until it is fixed.
 - **A gateway that reports connected can still refuse every call.** Only the tool response

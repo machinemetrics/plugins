@@ -34,22 +34,17 @@ under active development and gains commands.
 through npm or Homebrew**, so do not reach for `npm i -g` or `brew install`. `mmdev update`
 upgrades an existing install in place.
 
-Releases before 0.53.3 stop on an interactive update prompt on every invocation, including
-`--version`, which no agent can answer. If `mmdev` appears to hang and produces nothing, that
-is why. Run `MMDEV_NO_UPDATE=1 mmdev --version` to get past it, then `mmdev update`.
+`setup` owns the version check: these skills assume `mmdev` 1.0.0 and the current libraries,
+and nothing here branches on an older one.
 
 ## Templates
-
-`carbide-app`, `carbide-tab` and `carbide` all exist in `mmdev` 0.54.0 and later. On an older
-CLI only `carbide` does, so run `mmdev create --help` rather than trusting any written list.
 
 Which template a surface takes, and recording that choice in `SPEC.md`, is a build decision
 rather than a CLI fact: the `implement` skill carries the mapping.
 
 **Read `mmdev create --help` for the list that exists in the installed CLI.** Template names
-appear in documentation before they ship. Before 0.54.0 an unknown template prints `Template
-not found` and **exits 0**, so the failure is easy to miss in a longer script; from 0.54.0 it
-exits non-zero. Checking that the project directory exists is correct on either.
+appear in documentation before they ship. An unknown template prints `Template not found` and
+exits non-zero; checking that the project directory exists catches it either way.
 
 When a named template is unavailable, fall back to the general Carbide template rather than
 copying another project.
@@ -61,7 +56,7 @@ copying another project.
 | `mmdev oauth dev-init` | **Per environment.** Writes a `LOCAL TEST` client under `~/.mmrc`, which is a directory holding one per environment. Reuses the existing one for that environment |
 | `mmdev oauth dev-apply` | Copies that client into the current project's `public/default.json` |
 | `mmdev oauth dev-reset` | Clears the local client from `~/.mmrc` |
-| `mmdev oauth add -n <name> -r <redirect>` | Creates a **new named client** and prints its id and secret |
+| `mmdev oauth add -n <name> -r <redirect>` | Creates a **new named client** and prints its id. It prints a secret too; a PKCE deployment does not use it |
 | `mmdev oauth list` | Lists clients |
 | `mmdev oauth update -i <id> -n <name> -r <redirects>` | Updates one. **`-r` replaces the whole redirect list** |
 
@@ -77,17 +72,18 @@ mmdev oauth dev-apply   # only possible now: it needs a project to write into
 
 `mmdev create` with `login` or `dev-init` missing prints `Please run 'mmdev oauth dev-init'
 before creating a project` and creates nothing. The message names only the second command even
-when the first is what is missing. Before 0.54.0 it also **exits 0**; from 0.54.0 it exits
-non-zero. Check that the directory exists rather than trusting the exit code.
+when the first is what is missing. Check that the directory exists rather than trusting the
+exit code alone.
 
-For a deployment customers will use, create its own client with `mmdev oauth add` rather than
+For a deployment intended for real users, create its own client with `mmdev oauth add` rather than
 shipping `LOCAL TEST`.
 
-The client id and secret are served publicly from the deployed site at `/default.json`. In the
-current flow the registered redirect list is the control, not the secret, which is why `-r`
-replacing the entire list matters. The library is moving to OAuth 2.1 with PKCE, after which
-neither value is needed in the browser. Always include the existing redirects, and
-re-run `mmdev oauth list` afterwards to confirm the count grew by exactly one.
+The client id is served publicly from the deployed site at `/default.json`. The registered
+redirect list is the control, not the id, which is why `-r` replacing the entire list matters.
+From `mmdev` 1.0.0 there is no secret at all: the templates use OAuth 2.1 with PKCE on
+`mm-react-tools` 5.x, `dev-init` stores only a client id, and `dev-apply` strips a `clientSecret`
+an older scaffold still carries. Always include the existing redirects, and re-run
+`mmdev oauth list` afterwards to confirm the count grew by exactly one.
 
 ## The environment invariant
 
@@ -103,21 +99,29 @@ A fresh scaffold does not guarantee agreement.
 | Deployment config | `cat public/default.json` | Set `releaseStage`. **Remove `urls`, do not edit it** |
 
 **`urls` is a trap.** `mm-react-tools` resolves per-stage defaults from `releaseStage`, so a
-correct deployment usually has no `urls` at all. Pasting an environment's API address in to
-fix a mismatch pins the deployment to that endpoint and survives every later stage change:
-on GovCloud that means a deployment silently talking to Commercial. Set the stage and delete
-any `urls` override that is already there.
+correct deployment has no `urls` at all. Pasting an environment's API address in to fix a
+mismatch pins the deployment to that endpoint and survives every later stage change: on
+GovCloud that means a deployment silently talking to Commercial. Set the stage and delete any
+`urls` override that is already there.
+
+**On `mm-react-tools` 5.1 the stage carries the partition.** The stages are `production`,
+`govcloud`, `staging` and `development`, and each resolves the login, app, API, GraphQL, NATS
+and Carbide Data hosts together, readable at runtime as `useMMAuth().urls`. A GovCloud
+deployment is `releaseStage: "govcloud"` and needs no `urls`.
+
+An older GovCloud deployment carries `production` plus a pinned `urls` instead. That is a
+repair, and `setup` covers it.
 
 **`mmdev oauth dev-apply` is only safe on a scaffold you are still building.** It copies the
 machine's shared `LOCAL TEST` client into `public/default.json`, overwriting whatever is
-there. On a deployment that already has its own client that destroys the customer's client id
+there. On a deployment that already has its own client that destroys the deployment's client id
 and its registered redirect list, and the app keeps working locally while being broken for
 everyone else.
 
 | Project | Repair |
 | :--- | :--- |
 | New, or local-only, still carrying `LOCAL TEST` | After switching, `mmdev oauth dev-init` then `mmdev oauth dev-apply`. `dev-init` is per environment, and the client that `dev-apply` copies belongs to whichever environment was active when `dev-init` last ran |
-| Has its own client, or is deployed anywhere | `mmdev oauth list`, pick the client that belongs to this deployment in the target environment, and write its id and secret in by hand. If none exists for that environment, `mmdev oauth add` a new one with the deployment's real redirect |
+| Has its own client, or is deployed anywhere | `mmdev oauth list`, pick the client that belongs to this deployment in the target environment, and write its id in by hand. If none exists for that environment, `mmdev oauth add` a new one with the deployment's real redirect |
 
 `public/default.json` is usually the stale leg: it is written once at scaffold time and never
 again. Switch `mmdev` to the environment you want, repair the client by the table above, then
@@ -148,8 +152,8 @@ double, so they prove layout and nothing about embedding.
 | Symptom | Cause |
 | :--- | :--- |
 | `docker compose up` fails, `repository name must be lowercase` | A non-kebab-case project name became the compose service key (mmdev-cli#101) |
-| Hangs with no output | Pre-0.53.3 update prompt. `MMDEV_NO_UPDATE=1`, then `mmdev update` |
-| `Template not found`, exit 0 | Template not in the installed CLI |
+| Hangs with no output | An old release's update prompt. `MMDEV_NO_UPDATE=1`, then `mmdev update` |
+| `Template not found` | Template not in the installed CLI |
 | Auth fails after a clean build | Environment invariant broken |
 | Playground shows stale behaviour | An older playground on another port |
 | Playground loads but shows nothing | Embed type and deployment URL never entered in the modal |

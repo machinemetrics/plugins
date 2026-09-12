@@ -13,16 +13,17 @@ appears inside the platform.
 where the project already is and hands off to exactly one skill. It is also the way back in:
 every later change re-enters here, which is what keeps `SPEC.md` honest.
 
-## Talking to the customer
+## Working with the developer
 
-You are a MachineMetrics assistant helping someone build a deployment. Assume they know
-their shop floor and their business, not React, OAuth, or the command line.
+You are working with a developer who is building on MachineMetrics. Treat them as a
+colleague: they may know their shop floor better than they know React, OAuth, or the command
+line, and either way they are the one deciding what gets built.
 
 - **Say what it means for what they are building first, then the detail.** One plain
   sentence of consequence, then the technical part. Never the other way round.
 - **Name the phase you are in.** The skills are the phases: prepare the machine, decide
   what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells the customer where they are and what comes next. What stays out of the
+  building" tells them where they are and what comes next. What stays out of the
   conversation is the machinery inside a phase: gates, rules, routing, section numbers.
   Give the reason for a step, never a citation.
 - **Technical detail is welcome when it helps or they ask for it.** Explain a term the
@@ -30,25 +31,13 @@ their shop floor and their business, not React, OAuth, or the command line.
   them.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
+**They are a peer with a different access surface, not a lesser one.** They build against
+their own MachineMetrics organisation, on production or GovCloud, with no internal
+environment to fall back on and no way to undo a platform mutation from the CLI. That
+changes which options exist, never how much is explained or how much is assumed.
+
 Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
 is now: that precision is what catches errors before they reach the shop floor.
-
-### Say what the phases are, once
-
-On a first contact, before the first handoff, lay out the path in four lines so the customer
-knows where they are and what is coming. Not on a return visit, and not again later.
-
-> 1. **Prepare the machine** so it can talk to MachineMetrics. Once per computer.
-> 2. **Decide what to build**, in enough detail to be worth building. The most valuable
->    hour of the project.
-> 3. **Build it**, against your real data.
-> 4. **Put it live** and register it so it appears inside MachineMetrics.
-
-Say which one is next and why. Two of them have a smaller question inside: whether the
-deployment needs to record anything of its own, settled while deciding what to build, and
-the design of those records, settled while building. Mention those when they arrive, not
-here.
-
 ## 1. Detect, do not ask
 
 Read the project state before asking the person anything. They often do not know, and the
@@ -91,7 +80,7 @@ the find returns more than one, do not guess: name them and ask which is the dep
 | A cell reading `pending` | Not a gap. `implement` fills those two when it scaffolds |
 | `SPEC.md` complete, no `public/default.json` anywhere below | Specified, not scaffolded |
 | A `public/default.json` exists | A project exists, at that directory. The file is the proof, not its contents |
-| That file has an empty or missing `clientId` | Still a project, with broken configuration. `implement`, to repair the client by its environment table. Never scaffold over it, and never assume `dev-apply` is the fix: on a deployed project it overwrites the customer's client |
+| That file has an empty or missing `clientId` | Still a project, with broken configuration. `implement`, to repair the client by its environment table. Never scaffold over it, and never assume `dev-apply` is the fix: on a deployed project it overwrites the deployment's own client |
 | A surface in `SPEC.md` at status `built` | Code exists for it, not yet shipped |
 | A surface at status `deployed` | It is live |
 | A surface at status `blocked` | Specified, and something outside the spec stops the build. The row says what |
@@ -111,10 +100,21 @@ Three things are worth confirming here, because all three fail silently:
 MMDEV_NO_UPDATE=1 mmdev --version
 ```
 
-The environment variable is not optional here. Releases before 0.53.3 stop on an interactive
-update prompt on **every** invocation including `--version`, which no agent can answer, so
-the bare command hangs on exactly the machines this check exists to catch. If it still hangs
-or prints nothing, treat that as a failure and hand off to `setup`.
+**These skills assume `mmdev` 1.0.0.** Anything older, and anything that hangs or prints
+nothing, is a machine that is not ready: hand off to `setup`, which owns the version check and
+the upgrade. The environment variable is not optional here, because an old release stops on an
+interactive update prompt on every invocation including `--version`, so the bare command hangs
+on exactly the machines this check exists to catch.
+
+If a project already exists, check its libraries too, in the project's `app/` directory:
+
+```bash
+npm ls @machinemetrics/mm-react-tools @machinemetrics/mm-react-components
+```
+
+Either package below the version `setup` requires routes there as well, `mm-react-tools` below
+5.1.0 or `mm-react-components` below 1.6.1. Use the scoped names: the unscoped ones report
+nothing rather than failing, which reads as "not installed" on a project that has them.
 
 **Does the gateway actually answer?** Probe it: call any cheap gateway tool, for example a
 `knowledgeBase` query with any string. Say out loud that you are probing, so the call does not
@@ -146,16 +146,16 @@ cheap and it is not bookkeeping: the environment is inherited from whatever was 
 the machine, which may be another project or another day's work, and nothing about a wrong one
 looks wrong until `deploy`.
 
-A customer works on their own environment: `production` on Commercial, `govcloud` on GovCloud.
-`staging` and `sandbox` are MachineMetrics-internal and a customer cannot reach them. So if the
-active environment is `staging` or `sandbox` and this is a customer's deployment, say so and
+A deployment runs on its own account's environment: `production` on Commercial, `govcloud` on
+GovCloud. `staging` and `sandbox` are MachineMetrics-internal and are not reachable from here.
+So if the active environment is `staging` or `sandbox`, say so and
 hand off to `setup` to switch, rather than building on it. A session that starts on the wrong
 environment produces a deployment that is hosted, publicly reachable and unable to reach the
 API, which is only discovered once it is live.
 
-**Do not ask which is happening.** This plugin builds applications for customers, so the
+**Do not ask which is happening.** Everything built here runs on a real account, so the
 environment is always theirs. MachineMetrics staff rehearsing the workflow on `staging` know
-to switch and do not need to be offered the choice, and offering it to a customer proposes an
+to switch and do not need to be offered the choice, and offering it here proposes an
 environment they cannot deploy to.
 
 If any check fails, hand off to `setup`. **If `setup` installs or authorizes a gateway, the
@@ -189,6 +189,7 @@ First match wins. Name the skill, say why, and invoke it. Do not list the others
 | State | Next |
 | :--- | :--- |
 | Machine not ready | `setup` |
+| `mmdev`, or an existing project's libraries, behind the versions these skills assume | `setup`, to upgrade first. Building against an old toolchain produces a deployment that has to be repaired later |
 | No `SPEC.md`, or the spec is not finished | `spec` |
 | `SPEC.md` says `storage: yes` and the Carbide Data tools are absent | `carbide-data`, to diagnose the grant before any surface work |
 | Any surface at `blocked` | `spec`, for that surface. Check whether the blocker has cleared before anything else |
@@ -246,10 +247,18 @@ Use these words precisely. They are not interchangeable, and the product UI uses
 
 | Term | Meaning |
 | :--- | :--- |
+| `developer` | The person you are working with. They own the code and the hosting |
+| `operator` | Who uses the finished deployment, usually at a machine on the floor |
 | `app` | The MachineMetrics product itself, at app.machinemetrics.com |
-| `deployment` | The code the customer hosts, on its own origin, with an OAuth client |
+| `deployment` | The code the developer hosts, on its own origin, with an OAuth client |
 | `view` | What a user opens. A `widget`, an OperatorView `tab`, or a `fullpage` |
 | `surface` | A single `view` inside a deployment. A deployment can have several |
 | `project` | A set of Carbide Data tables with a name, an icon, and a deployment URL |
 
-Avoid the bare word "app" for what the customer is building. Say `deployment` or `surface`.
+Avoid the bare word "app" for what is being built. Say `deployment` or `surface`.
+
+The developer builds against their own MachineMetrics account, which is what decides the
+environment and the partition. That is an access boundary, not a skill one: they have no
+internal environment to fall back on and cannot undo a platform mutation from the CLI, so some
+options that exist inside MachineMetrics do not exist here. It says nothing about what they
+know.

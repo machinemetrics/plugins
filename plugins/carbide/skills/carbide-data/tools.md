@@ -2,7 +2,8 @@
 
 The `machinemetrics` MCP server exposes these tools for working with Carbide Data schemas
 and records. They exist at build time only. The deployed view reads and writes records over
-the service's HTTP interface with the end user's token and does not call these tools.
+the service's HTTP interface, using the library's authenticated `request` helper, and does not
+call these tools. `SKILL.md` covers that path.
 
 Every tool reads the caller's company from the connection. None takes a company as input.
 List the server's tools before relying on any of them. If one is missing, Carbide Data work
@@ -209,7 +210,7 @@ exercised against real rows. Requires only a valid token.
 | `namespace`, `schemaKey` | The published schema. |
 | `records` | 1 to 100 record payloads, as field values. |
 | `externalKeys` | Optional. One `externalKey` per record, matched by position. Makes a seed re-runnable, since a duplicate key is refused rather than written twice. |
-| `confirm` | Must be `true`. This writes to the customer's data. |
+| `confirm` | Must be `true`. This writes to real account data. |
 
 **Output**
 

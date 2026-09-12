@@ -5,7 +5,7 @@ description: Build what the spec describes: scaffold the project, build the inte
 
 # Implement the spec
 
-This skill coordinates the build. It does not hand the customer a menu: it sequences the work
+This skill coordinates the build. It does not hand over a menu: it sequences the work
 itself and calls into the two references it needs.
 
 | It calls | For |
@@ -13,16 +13,17 @@ itself and calls into the two references it needs.
 | `components/SKILL.md` in this directory | Layout, theming, composition against the library |
 | `carbide-data` | Schema design, publish, and query, only when `SPEC.md` says `storage: yes` |
 
-## Talking to the customer
+## Working with the developer
 
-You are a MachineMetrics assistant helping someone build a deployment. Assume they know
-their shop floor and their business, not React, OAuth, or the command line.
+You are working with a developer who is building on MachineMetrics. Treat them as a
+colleague: they may know their shop floor better than they know React, OAuth, or the command
+line, and either way they are the one deciding what gets built.
 
 - **Say what it means for what they are building first, then the detail.** One plain
   sentence of consequence, then the technical part. Never the other way round.
 - **Name the phase you are in.** The skills are the phases: prepare the machine, decide
   what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells the customer where they are and what comes next. What stays out of the
+  building" tells them where they are and what comes next. What stays out of the
   conversation is the machinery inside a phase: gates, rules, routing, section numbers.
   Give the reason for a step, never a citation.
 - **Technical detail is welcome when it helps or they ask for it.** Explain a term the
@@ -30,9 +31,13 @@ their shop floor and their business, not React, OAuth, or the command line.
   them.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
+**They are a peer with a different access surface, not a lesser one.** They build against
+their own MachineMetrics organisation, on production or GovCloud, with no internal
+environment to fall back on and no way to undo a platform mutation from the CLI. That
+changes which options exist, never how much is explained or how much is assumed.
+
 Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
 is now: that precision is what catches errors before they reach the shop floor.
-
 ## Before starting
 
 `SPEC.md` must exist with all of the following. It lives at the **project root**, which is
@@ -92,10 +97,18 @@ Pick the template from the surface type `SPEC.md` settled on:
 | `tab` | `carbide-tab` | OperatorView tab: machine context, kiosk sizing, no navigation |
 | `widget`, or unsure | `carbide` | Base deployment, least wiring to unpick |
 
-**Run `mmdev create --help` and use what it lists.** `carbide-app` and `carbide-tab` arrive in
-0.54.0, so an older CLI has only `carbide`, and this table has been wrong in both directions
-before. Scaffolding a `tab` from `carbide` means the machine context and the kiosk sizing are
-yours to wire by hand: say that out loud rather than discovering it at the embed step.
+**Run `mmdev create --help` and use what it lists.** It should print `carbide`, `carbide-app`,
+`carbide-tab`, `generic-erp-connector`, `sql-server-connector` and `module`. This table has been
+wrong in both directions before, so read the CLI rather than trusting it. Scaffolding a `tab`
+from `carbide` means the machine context and the kiosk sizing are yours to wire by hand: say
+that out loud rather than discovering it at the embed step.
+
+**What a scaffold contains.** The Carbide templates sign in with OAuth 2.1 and PKCE, so
+`public/default.json` holds a `releaseStage` and a `clientId` and no secret. `carbide-app` ships
+no `Item` demo, its index route renders Home, and the host-sidesheet pattern lives in the
+scaffold's `REGISTRATION.md`. `utils/request.ts` is the authenticated request helper and takes a
+bearer for the calls you add. There is no `public/mm-app-manifest.json`: nothing in the platform
+reads it.
 
 **Two commands must have run first, in this order, and neither is optional:**
 
@@ -110,11 +123,10 @@ the project to a different environment, this client is the wrong one and the rep
 covers it. `setup` step 5 normally leaves the right client in place already, in which case both
 commands are no-ops.
 
-**Check that the project directory exists, not the exit code.** Before 0.54.0, both an unknown
-template and a missing prerequisite print a message and **exit 0**, so a failure reads as
-success in a script and leaves you working in an empty directory. The prerequisite message
-names only `dev-init` even when `mmdev login` is what is missing. From 0.54.0 these exit
-non-zero, which is why the check is the directory rather than the code.
+**Check that the project directory exists, not just the exit code.** An unknown template and a
+missing prerequisite both exit non-zero, so the code is trustworthy, but the directory check
+costs nothing and catches a scaffold that reported success and produced nothing. The
+prerequisite message names only `dev-init` even when `mmdev login` is what is missing.
 
 **Use a kebab-case name**, matching `^[a-z0-9]+(-[a-z0-9]+)*$`: lower case, digits, single
 hyphens, nothing else.
@@ -163,29 +175,40 @@ redirect list growing one entry per deployment. Fine while the work is local.
 This is also why the OAuth leg of the environment invariant can drift on its own: `dev-apply`
 copies whichever client belongs to the environment that was active when it ran.
 
-**A deployment customers will use needs its own client**, with a real name and its own
+**A deployment intended for real users needs its own client**, with a real name and its own
 redirect:
 
 ```bash
 mmdev oauth add -n "<deployment name>" -r "https://<host>/authorize/mm/callback"
 ```
 
-That prints a `CLIENT_ID` and `CLIENT_SECRET` for `public/default.json`. `mmdev oauth list`
-shows what exists; `mmdev oauth dev-reset` clears the local client from `~/.mmrc`.
+That prints a `CLIENT_ID` and a `CLIENT_SECRET`. **Only the id goes into
+`public/default.json`.** The CLI still prints the secret because the platform still mints one,
+not because a PKCE deployment has anywhere to put it: discard it. `mmdev oauth list` shows what
+exists; `mmdev oauth dev-reset` clears the local client from `~/.mmrc`.
 
-Note the client id and secret are served publicly from the deployed site at `/default.json`.
-That is how the current flow works, and it is why the registered redirect list is the control
-worth being careful with rather than the secret. The library is moving to OAuth 2.1 with PKCE,
-after which neither value is needed in the browser. Until then, treat a deployment's client as
-public and keep its redirect list tight.
+Note the client id is served publicly from the deployed site at `/default.json`. That is by
+design: the registered redirect list is the control, not the id, which is why replacing that
+list carelessly matters. Keep a deployment's redirect list tight.
+
+**There is no client secret.** The Carbide templates sign in with OAuth 2.1 and PKCE:
+`MMProvider` takes no `clientSecret`, the auth context exposes no `accessToken`, `dev-init`
+stores only a client id, and `dev-apply` strips a `clientSecret` that an older scaffold still
+carries. If you find one in `public/default.json`, the project predates the current toolchain
+and `setup` covers upgrading it.
+
+**No client secret is not the same as no credentials.** The browser still holds bearer tokens:
+the library keeps a credential store and hands one out per call. They are short-lived rather
+than harmless, so do not log them, do not put them in a URL, and do not persist them anywhere
+the bundle can read back.
 
 ## 2. Reconcile the environment before writing code
 
-Three things must name **the customer's** environment, and a fresh scaffold does not guarantee
+Three things must name **the account's** environment, and a fresh scaffold does not guarantee
 it. Agreeing with each other is not the test: three legs consistently naming `staging` is a
-configuration that builds, passes its tests, deploys, and then cannot reach the API, because a
-customer's data lives only on their own environment: `production` on Commercial, `govcloud`
-on GovCloud. Check the name, not only the consistency.
+configuration that builds, passes its tests, deploys, and then cannot reach the API, because
+the data lives only on that account's environment: `production` on Commercial, `govcloud` on
+GovCloud. Check the name, not only the consistency.
 
 | | Where |
 | :--- | :--- |
@@ -198,9 +221,9 @@ on GovCloud. Check the name, not only the consistency.
 assumes, and a mismatch there sends every symptom towards the code instead. `setup` covers
 how to establish it.
 
-If they disagree, the correct one is the customer's environment: `production`, or `govcloud`
-for a GovCloud customer. Make the others match it. Do not ask which to target, because a
-customer has no other option. Each leg has its own remedy, so name the leg before reaching for
+If they disagree, the correct one is the account's own environment: `production`, or
+`govcloud` on GovCloud. Make the others match it. Do not ask which to target, because there is
+no other option. Each leg has its own remedy, so name the leg before reaching for
 a command:
 
 | Leg | Read it with | Fix it with |
@@ -210,21 +233,31 @@ a command:
 | Deployment config | `cat public/default.json` | Set `releaseStage`. **Remove `urls`, do not edit it** |
 
 **`urls` is a trap.** `mm-react-tools` resolves per-stage defaults from `releaseStage`, so a
-correct deployment usually has no `urls` at all. Pasting an environment's API address in to
-fix a mismatch pins the deployment to that endpoint and survives every later stage change:
-on GovCloud that means a deployment silently talking to Commercial. Set the stage and delete
-any `urls` override that is already there.
+correct deployment has no `urls` at all. Pasting an environment's API address in to fix a
+mismatch pins the deployment to that endpoint and survives every later stage change: on
+GovCloud that means a deployment silently talking to Commercial. Set the stage and delete any
+`urls` override that is already there.
+
+**On `mm-react-tools` 5.1 the stage carries the partition.** The stages are `production`,
+`govcloud`, `staging` and `development`, and each resolves the login, app, API, GraphQL, NATS
+and Carbide Data hosts together, readable at runtime as `useMMAuth().urls`. A GovCloud
+deployment is `releaseStage: "govcloud"` and needs no `urls` at all.
+
+A GovCloud deployment carrying `releaseStage: "production"` plus a pinned `urls` predates this
+and is a repair rather than a mismatch to leave alone: `setup` covers it. Keeping both leaves a
+pin that outlives the next host change, and a host forgotten from the override talks to
+Commercial in the meantime. See `setup`'s `partitions.md` for the addresses.
 
 **`mmdev oauth dev-apply` is only safe on a scaffold you are still building.** It copies the
 machine's shared `LOCAL TEST` client into `public/default.json`, overwriting whatever is
-there. On a deployment that already has its own client that destroys the customer's client id
+there. On a deployment that already has its own client that destroys the deployment's client id
 and its registered redirect list, and the app keeps working locally while being broken for
 everyone else.
 
 | Project | Repair |
 | :--- | :--- |
 | New, or local-only, still carrying `LOCAL TEST` | After switching, `mmdev oauth dev-init` then `mmdev oauth dev-apply`. `dev-init` is per environment, and the client that `dev-apply` copies belongs to whichever environment was active when `dev-init` last ran |
-| Has its own client, or is deployed anywhere | `mmdev oauth list`, pick the client that belongs to this deployment in the target environment, and write its id and secret in by hand. If none exists for that environment, `mmdev oauth add` a new one with the deployment's real redirect |
+| Has its own client, or is deployed anywhere | `mmdev oauth list`, pick the client that belongs to this deployment in the target environment, and write its id in by hand. If none exists for that environment, `mmdev oauth add` a new one with the deployment's real redirect |
 
 **`public/default.json` is usually the wrong leg**, and it is wrong the moment it is created
 rather than by drifting. The template writes `releaseStage: "production"` regardless of the
@@ -250,7 +283,7 @@ environment right in `setup` rather than here.
 ## 3. Build the interface
 
 Read [components/SKILL.md](components/SKILL.md) and follow it. It is generated from the pinned
-component package, so it is the current rules rather than a summary of them. The customer does
+component package, so it is the current rules rather than a summary of them. The developer does
 not invoke it: this skill does.
 
 Build the surface the spec names. A `widget`, an OperatorView `tab`, and a `fullpage` view
@@ -351,8 +384,13 @@ though it does, which is the trap: a deployment that has just been told its data
 Carbide Data finds a configured server URL and a request helper sitting there, and wires the
 write path to the wrong service. A shipped surface does reach Carbide Data over HTTP,
 because no MCP tool exists inside a running application, but it does so at the Carbide Data
-base URL for the customer's partition, which `setup` records alongside the gateway and
-platform origins. Take it from there, not from `serverUrl`.
+base URL for the account's partition, not at `serverUrl`.
+
+**Read that base URL from the library, not from the table.** The stage resolves it alongside
+every other host, so the deployment takes it off the auth hook's `urls` and follows its
+`releaseStage` automatically. The partition table in `setup`'s
+`partitions.md` is for probes and `curl` checks; hardcoding a literal from it pins the
+deployment to one partition and is the same trap as pasting an `apiUrl`.
 
 ## 5. Wire the runtime, and hold it to a standard
 
@@ -361,8 +399,11 @@ Three properties, all checkable:
 
 - **Accurate.** Every number on screen must be traceable to the computation written in
   `SPEC.md`. If they disagree, one of them is wrong and it is not always the code.
-- **Secure.** Never read a secret from anywhere but `public/default.json` and never widen a
-  redirect list to make something work. Authorization is the platform's, not the deployment's:
+- **Secure.** Client configuration comes from `public/default.json`, hosts come from what the
+  library resolves for the stage, and runtime credentials come from the auth hook and are read
+  per use. Never invent a second source for any of the three, and never write a bearer token
+  into `public/default.json`: that file is served publicly. Never widen a redirect list to make
+  something work. Authorization is the platform's, not the deployment's:
   do not reimplement it, and do not trust a value the client sent about who the user is.
 - **Performant.** Fetch on the surface's terms. A widget refreshing every second inside an
   OperatorView is a different cost to a fullpage view a planner opens twice a day.
@@ -458,29 +499,21 @@ a dead server wastes the round and leaves you believing auth is fragile. Then, i
 type matching the surface, and paste the deployment URL into the modal.** Until that is done
 the playground is showing you an empty host and nothing about the deployment.
 
-**For a `tab`, the playground cannot close the whole gate.** Up to and including `mmdev`
-0.53.3 it sends no machine context: the tab receives `colorMode` and `isFullScreen` and
-nothing else, and appending a query string to the playground's `url` parameter does not help
-because only the origin is used. So the machine-context half of a tab's contract is not
-verifiable there. Say so rather than reporting the gate as passed.
+**For a `tab`, the playground runs the real thing.** It is an authenticated
+MachineMetrics host: it signs in with PKCE, brokers the embedded credential, and has an
+OperatorView tab mode that sends real machine context, so the machine half of a tab's contract
+is verifiable locally. Pick tab mode, paste the deployment URL, and check that
+`useMMAppContext()` returns a machine rather than nothing.
 
-To verify that half locally before 0.54.0, add a **development-only** fallback that accepts a
-machine from the query string when no host context has arrived, then open the deployment
-origin directly:
+It also serves `/default.json` for the active environment, and `MMDEV_PLAYGROUND_ENV` pins the
+dev server to one environment without changing which one is active. Use that rather than
+switching `mmdev` back and forth, which changes the answer for every other project on the
+machine.
 
-```
-http://development.machinemetrics.com:3000/?machineId=<uuid>
-```
-
-Use the hostname the OAuth redirect is registered against, not `localhost`. The query
-survives sign-in because that runs in a popup, so the main window is never navigated away.
-
-**That fallback is scaffolding and must not ship.** In production the machine always arrives
-through context. An app that reads its machine from the URL is wrong even when it works,
-because OperatorView never puts it there. Delete the fallback before the exit gate, and treat
-it exactly like the mock data path: reachable means not done.
-
-Tab mode with full context is landing in `mmdev` 0.54.0, after which this is unnecessary.
+A query-string fallback that reads the machine from the URL is a leftover from when the
+playground could not send context. If you meet one in an existing project, remove it: an app
+that reads its machine from the URL is wrong even when it works, because an OperatorView tab
+embed never puts it there.
 
 ### Check every utility class actually exists
 
@@ -519,8 +552,8 @@ Do not treat the build as done until all of these are true:
 
 - The deployment ran in the playground, with real authentication, not in a visual harness
 - Every data source in `SPEC.md` was exercised, not just rendered
-- **If `storage: yes`:** writes were performed and read back from the remote store, not from
-  a mock
+- **If `storage: yes`:** writes were performed and read back **from storage itself**, with
+  `executeCarbideQuery`, not by looking at the screen that displays them
 - **If `storage: no`:** every read was served by the real API, and you said out loud that
   there is no write path to exercise
 - One error path was triggered deliberately
@@ -530,20 +563,33 @@ Do not treat the build as done until all of these are true:
 - For a `tab` registered as an **OperatorView tab embed**, the machine comes from
   `useMMAppContext()` and no query-string fallback remains
 
-**What this gate cannot check, for a `tab`.** The playground supplies no machine context: it
-builds the embed URL from the origin alone, discarding any path or query string, and its `/app`
-route sends no `context`. So the surface can pass every line above and still not know which
-machine it is attached to.
+**A screen that looks right is not evidence.** Query the rows back on every state the surface
+can write. Two failures in one field run were invisible on screen and obvious in the rows. A
+list rendered nothing because the reader decoded the wrong envelope while the writes were
+landing perfectly. A "claimed and closed" flow had never written the close at all, because the
+button that sends it renders only for the person who claimed the record, and the check
+compared a different identity field than the one written. Both looked like success.
 
-Whether that matters depends on how the tab will be registered, which `spec` should already
-have settled:
+That last one is a shape worth naming: **write one identity, compare another**. If a record
+stores who did something and the interface gates on it, the value written and the value
+compared must come from the same expression, and a test has to cover the gate rather than the
+write.
 
-- **An OperatorView tab embed** does supply `{ machineId, machineRef, operationId, partCount }`.
-  The machine half of the contract simply cannot be verified locally until playground tab mode
-  ships. Say that you are giving up that verification rather than implying the gate covered it.
-- **A Manage Tabs custom tab** supplies nothing at all: it is a plain iframe. There the query
-  string is not a leftover to remove, it is the only mechanism that works, and the bullet above
-  does not apply. `deploy` covers this.
+**For a `tab` registered as an OperatorView tab embed, check the machine context in the
+playground's tab mode.** It sends real context, so this is a line the gate covers rather than a
+caveat it has to make. Confirm `useMMAppContext()` returns a machine, and that no query-string
+fallback is left behind. A Manage Tabs custom tab is the other case entirely, and the paragraph
+after this one is the one that applies to it.
+
+How the tab will be registered still decides what the context is worth, and `spec` should have
+settled it:
+
+- **An OperatorView tab embed** supplies `{ machineId, machineRef, operationId, partCount }`.
+  This is the case the playground now reproduces.
+- **A Manage Tabs custom tab** supplies nothing at all: it is a plain iframe. The deployment
+  obtains the machine itself, from its own URL or from a selector it persists per tablet, and
+  the bullet above does not apply: there a query string is the mechanism rather than a leftover.
+  `deploy` covers both, including that the URL route needs one tab entry per machine.
 
 Either way, do not report a `tab` as working on the strength of the playground alone.
 

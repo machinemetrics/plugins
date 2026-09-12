@@ -5,22 +5,23 @@ description: Host a finished deployment, register it with MachineMetrics so it a
 
 # Deploy and register
 
-The customer owns the code and the hosting. MachineMetrics governs identity, data access, and
+The developer owns the code and the hosting. MachineMetrics governs identity, data access, and
 what appears inside the platform.
 
 Plan this early. Discovering a hosting problem after the application is built is the most
 common way a project stalls, so ask where it will be hosted during the spec.
 
-## Talking to the customer
+## Working with the developer
 
-You are a MachineMetrics assistant helping someone build a deployment. Assume they know
-their shop floor and their business, not React, OAuth, or the command line.
+You are working with a developer who is building on MachineMetrics. Treat them as a
+colleague: they may know their shop floor better than they know React, OAuth, or the command
+line, and either way they are the one deciding what gets built.
 
 - **Say what it means for what they are building first, then the detail.** One plain
   sentence of consequence, then the technical part. Never the other way round.
 - **Name the phase you are in.** The skills are the phases: prepare the machine, decide
   what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells the customer where they are and what comes next. What stays out of the
+  building" tells them where they are and what comes next. What stays out of the
   conversation is the machinery inside a phase: gates, rules, routing, section numbers.
   Give the reason for a step, never a citation.
 - **Technical detail is welcome when it helps or they ask for it.** Explain a term the
@@ -28,9 +29,13 @@ their shop floor and their business, not React, OAuth, or the command line.
   them.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
+**They are a peer with a different access surface, not a lesser one.** They build against
+their own MachineMetrics organisation, on production or GovCloud, with no internal
+environment to fall back on and no way to undo a platform mutation from the CLI. That
+changes which options exist, never how much is explained or how much is assumed.
+
 Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
 is now: that precision is what catches errors before they reach the shop floor.
-
 ## Requirements any host must meet
 
 Whatever they deploy to, it must be:
@@ -40,31 +45,41 @@ Whatever they deploy to, it must be:
 - **IT sanctioned.** Their organisation has agreed to host it.
 
 A laptop with a tunnel does not qualify. It works in a demo and fails in production, so do not
-let it become the plan. If the customer has no sanctioned hosting, that is the first problem to
+let it become the plan. If there is no sanctioned hosting, that is the first problem to
 solve, ahead of any code.
 
 ## Which path applies
 
 **Netlify is the recommended path** and the rest of this skill walks it. It is commercial SaaS.
 
-**A GovCloud customer cannot use it**, and neither can a customer whose IT requires their own
+**A GovCloud account cannot use it**, and neither can an organisation whose IT requires its own
 infrastructure. Those follow the requirements above with their own host, and the steps below
-apply only in spirit. Two values also differ by partition: the platform origin their deployment
-must accept, and the CORS origin the project template hardcodes to `app.machinemetrics.com`.
-The `setup` skill's `partitions.md` holds both. Check it before deploying a GovCloud customer.
+apply only in spirit. Two things differ by partition: the platform origin their deployment must
+accept, and `releaseStage`, which is `govcloud` rather than `production`. The `setup` skill's
+`partitions.md` holds the addresses for both; read them there rather than from here, so there
+is one copy.
+
+**If they serve the template's own container, its `nginx.conf` needs an edit.** It permits the
+commercial platform origin and only that one, written as a literal, so a GovCloud deployment
+refuses cross-origin requests from the platform that embeds it. This applies only to hosting
+that actually uses the template's nginx, not to Netlify, and not to a host that serves the
+built assets its own way.
 
 ## Netlify
 
-Assumes the project has an oauth client id and secret embedded in the app's runtime config (e.g. public/default.json)
+Assumes the project has an oauth client id in the app's runtime config (`public/default.json`).
 
-That secret is fine to ship in the bundle. We do not consider the oauth client secret to be a secret. Don't regenerate or touch it.
+**There is no client secret.** The templates sign in with OAuth 2.1 and PKCE, so no secret
+reaches the browser. The client id is public by design: the registered redirect list is what
+protects the client, which is why replacing that list carelessly matters and the id does not.
+Don't regenerate or touch it. A deployment still carrying a `clientSecret` predates the current
+toolchain, which `setup` covers.
 
-**Write credentials into files with a file-editing tool, never through the shell.** When a
-deployment does get its own client, the natural reflex is a one-liner that echoes the id and
-secret into `default.json`. That puts the secret in a command line and in the transcript, and
-it is routinely blocked as credential leakage, so the shortcut costs more than the careful
-path. Edit the file directly, and don't print the secret back to confirm it: confirm by
-reading back the key names, or the client id alone.
+**Write credentials into files with a file-editing tool, never through the shell.** With PKCE
+there is no secret to spill, but the habit is worth keeping: on an older scaffold, and for
+anything else a deployment holds, a one-liner that echoes a credential into `default.json` puts
+it in a command line and in the transcript, and is routinely blocked as credential leakage. The
+shortcut costs more than the careful path.
 
 ## One-time setup: SPA fallback
 
@@ -86,7 +101,8 @@ Skip this step if it's already there.
 
    If there's more than one candidate app directory (e.g. a nested duplicate from a
    repeat scaffold, or several sibling projects), don't just guess. The one to deploy is
-   the one with a `public/default.json` containing a populated `clientId`/`clientSecret`.
+   the one with a `public/default.json` carrying a real `clientId` rather than the template's
+   `MMDEV_CLIENT_ID` placeholder.
    If more than one qualifies, ask the user which one they mean.
 
 2. **Log in to Netlify**. First check whether a session already exists: `npx --yes
@@ -104,7 +120,7 @@ Skip this step if it's already there.
    Ask only *whether this is the intended account and team*, showing both as the CLI
    printed them. The team matters as much as the email: the right person signed in with a
    different active team deploys the site into the wrong space. The site is deployed to the
-   customer's own Netlify account, under whatever email and team they use, and that is the
+   developer's own Netlify account, under whatever email and team they use, and that is the
    normal case: this deployment belongs to them, not to MachineMetrics. Any email domain is
    expected. Never treat a non-`@machinemetrics.com` address as suspicious, never ask them
    to explain or justify it, and never suggest switching to a MachineMetrics account.
@@ -208,7 +224,7 @@ skips this works perfectly and is invisible to its users.
 Registration needs a name, the deployed URL, and an icon. Where you do it depends on the
 surface, and only one of the two is self-serve.
 
-**An OperatorView `tab` is self-serve.** The customer adds it themselves, and an admin can
+**An OperatorView `tab` is self-serve.** The developer adds it themselves, and an admin can
 do it without MachineMetrics:
 
 1. In the MachineMetrics app, go to **Settings** then **Operator Dashboard** then
@@ -247,12 +263,12 @@ handshake did not happen and no amount of application code will produce a machin
 
 | | Manage Tabs custom tab | OperatorView tab embed |
 | :--- | :--- | :--- |
-| Added by | The customer, Settings → Operator Dashboard → Manage Tabs | Not self-serve |
+| Added by | The developer, Settings → Operator Dashboard → Manage Tabs | Not self-serve |
 | Mechanism | Plain iframe, fixed URL | Embeddable zone, `postMessage` handshake |
 | `isEmbedded` | `false` | `true` |
 | Host context | None | `{ machineId, machineRef, operationId, partCount }` |
 | Host params | None | `{ language, isVisible }` |
-| Available | Today | With `mm-react-embeddable` 2.0.0 / `mm-react-tools` 5.0.0 |
+| Available | Today, self-serve | The library half ships: `mm-react-tools` 5.x, `mm-react-embeddable` 2.x. Registering the embed is not self-serve |
 
 **If the surface needs to know its machine and only Manage Tabs is available**, say so plainly
 rather than shipping it. There are three honest options, and the first is the only one that
@@ -264,16 +280,18 @@ works today without asking the operator:
    new entry.
 2. **A machine selector inside the deployment**, persisted per tablet. One tab entry, but the
    operator has to tell the application which machine they are standing at.
-3. **Wait for the OperatorView tab embed**, after which the documented context works and the
-   deployment needs no change.
+3. **Ask for the OperatorView tab embed.** On `mm-react-tools` 5.x the deployment side is ready
+   and the playground's tab mode proves it locally, so what is left is registration, which is
+   not self-serve. That makes this a request with a lead time rather than a wait for software.
+   If the answer is no or not yet, one of the first two options ships instead.
 
-Do not tell the customer their tab is registered and working until it has been opened on a
+Do not report a tab as registered and working until it has been opened on a
 tablet and shown real data for the right machine. Registration succeeding is not the same as
 the tab having a machine.
 
-**A `widget` or `fullpage` view in the portal is not self-serve.** There is no customer-facing
+**A `widget` or `fullpage` view in the portal is not self-serve.** There is no self-serve
 settings page for it. Ask MachineMetrics to register it, with the name, deployed URL, and
-icon in hand. Do not guess at an admin route or promise the customer a screen that does not
+icon in hand. Do not guess at an admin route or promise a screen that does not
 exist. If you find a documented self-serve path for this, it belongs in this skill.
 
 The registered origin matters for both. Authentication and framing are both tied to it, so a
@@ -313,7 +331,7 @@ two keys a host is most likely to send.
   the client via `mmdev oauth list`.
 - Confirm the `_redirects`/SPA fallback is actually in the deployed build (check the
   Netlify deploy's file list or just hit the callback URL directly and see if it 404s).
-- Confirm the client is on the **customer's** environment. Clients are per environment, so one
+- Confirm the client is on the **account's** environment. Clients are per environment, so one
   created on `staging` does not exist on `production`. Switching means `mmdev login` for the
   new environment, a fresh client, and a redeploy.
 
