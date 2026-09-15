@@ -29,7 +29,7 @@
         "app-builder"
       ],
       "source": "./carbide",
-      "version": "0.19.1"
+      "version": "1.0.0"
     }
   ]
 }
