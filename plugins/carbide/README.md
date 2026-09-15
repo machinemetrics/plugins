@@ -27,7 +27,8 @@ when you want to start, or restart, deliberately.
 
 ## Requirements
 
-- Claude Code
+- An agent host that loads plugins: Claude Code, Claude Desktop, Codex or Cursor
+- macOS or Linux, or Windows through WSL, because `mmdev` ships no native Windows binary
 - A MachineMetrics account, authenticated through `mmdev login`
 - Hosting for your deployment that is publicly reachable, persistent, and sanctioned by
   your IT organisation
@@ -41,9 +42,10 @@ installed.
 
 ## What it costs to keep installed
 
-Around 750 tokens are added to every session so the agent knows these skills exist. A skill
-that fires reads its own contents, which ranges from roughly 2,700 tokens for `start` to
-7,100 for `implement`. Nothing is read until a skill applies.
+Around 900 tokens are added to every session so the agent knows these skills exist. A skill
+that fires reads its own contents, which ranges from roughly 4,500 tokens for `storage-fit`
+to 9,100 for `carbide-data`. Nothing is read until a skill applies, and a skill that leans on
+a reference file reads that only when it needs it.
 
 Check the current figures yourself:
 
