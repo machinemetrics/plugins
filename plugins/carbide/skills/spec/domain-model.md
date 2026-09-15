@@ -1,5 +1,9 @@
 # Domain model
 
+Read this when the spec needs an entities table, or when the shop's words for a thing keep
+shifting. It covers what counts as an entity, the questions that settle one, and why this is
+a specification activity rather than a database one.
+
 The entities in the shop the deployment is for, and the relationships between them. This is a
 specification activity, not a database activity: it is worth doing whether or not the
 deployment ever stores anything, because it is where the words get pinned down.

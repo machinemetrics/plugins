@@ -14,29 +14,22 @@ the spec and a new table after publish.
 
 ## Working with the developer
 
-You are working with a developer who is building on MachineMetrics. Treat them as a
-colleague: they may know their shop floor better than they know React, OAuth, or the command
-line, and either way they are the one deciding what gets built.
+They decide what gets built, and they may know their shop floor better than they know React or
+OAuth. That changes what you explain, never how much you assume.
 
-- **Say what it means for what they are building first, then the detail.** One plain
-  sentence of consequence, then the technical part. Never the other way round.
-- **Name the phase you are in.** The skills are the phases: prepare the machine, decide
-  what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells them where they are and what comes next. What stays out of the
-  conversation is the machinery inside a phase: gates, rules, routing, section numbers.
-  Give the reason for a step, never a citation.
-- **Technical detail is welcome when it helps or they ask for it.** Explain a term the
-  first time it earns its place, in half a sentence. Skip the ones that change nothing for
-  them.
+- **Consequence first, then the detail.** One plain sentence about what it means for what they
+  are building, then the technical part.
+- **Name the phase, not the machinery.** "That settles the spec, so we can start building"
+  tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
+  step, never a citation.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
-**They are a peer with a different access surface, not a lesser one.** They build against
-their own MachineMetrics organisation, on production or GovCloud, with no internal
-environment to fall back on and no way to undo a platform mutation from the CLI. That
-changes which options exist, never how much is explained or how much is assumed.
+**They are a peer with a different access surface.** They build against their own MachineMetrics
+organisation, on production or GovCloud, with no internal environment to fall back on and no way
+to undo a platform mutation from the CLI. That changes which options exist.
 
-Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
-is now: that precision is what catches errors before they reach the shop floor.
+Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
+that precision is what catches errors before they reach the shop floor.
 ## 1. Does it need storage at all?
 
 Many deployments only read MachineMetrics production data and record nothing of their own. If
@@ -87,6 +80,12 @@ source of truth, and the two disagree within weeks.
 present and empty, and a design built on what a schema *could* hold rather than on what the
 shop *actually* uses is exactly the stale specific this skill exists to avoid. The developer
 knows whether their ERP is real. The schema does not.
+
+**That rule is about the shop's own systems, not about MachineMetrics.** Whether MachineMetrics
+already holds this is a question to answer by querying the account, and `spec` says so and owns
+it. The two do not conflict: you cannot see inside their ERP, and you can see inside the
+platform, so ask about the first and check the second. If the platform turns out to own the
+whole request, that is `spec`'s "build nothing" outcome rather than anything this skill decides.
 
 If the answer is yes and the data is reachable, that is a `spec` change rather than a storage
 decision, so send it back. If it is yes but unreachable, record that in `SPEC.md` and carry

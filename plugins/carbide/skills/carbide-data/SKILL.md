@@ -12,29 +12,22 @@ publish is a message and a mistake caught after is a new table.
 
 ## Working with the developer
 
-You are working with a developer who is building on MachineMetrics. Treat them as a
-colleague: they may know their shop floor better than they know React, OAuth, or the command
-line, and either way they are the one deciding what gets built.
+They decide what gets built, and they may know their shop floor better than they know React or
+OAuth. That changes what you explain, never how much you assume.
 
-- **Say what it means for what they are building first, then the detail.** One plain
-  sentence of consequence, then the technical part. Never the other way round.
-- **Name the phase you are in.** The skills are the phases: prepare the machine, decide
-  what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells them where they are and what comes next. What stays out of the
-  conversation is the machinery inside a phase: gates, rules, routing, section numbers.
-  Give the reason for a step, never a citation.
-- **Technical detail is welcome when it helps or they ask for it.** Explain a term the
-  first time it earns its place, in half a sentence. Skip the ones that change nothing for
-  them.
+- **Consequence first, then the detail.** One plain sentence about what it means for what they
+  are building, then the technical part.
+- **Name the phase, not the machinery.** "That settles the spec, so we can start building"
+  tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
+  step, never a citation.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
-**They are a peer with a different access surface, not a lesser one.** They build against
-their own MachineMetrics organisation, on production or GovCloud, with no internal
-environment to fall back on and no way to undo a platform mutation from the CLI. That
-changes which options exist, never how much is explained or how much is assumed.
+**They are a peer with a different access surface.** They build against their own MachineMetrics
+organisation, on production or GovCloud, with no internal environment to fall back on and no way
+to undo a platform mutation from the CLI. That changes which options exist.
 
-Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
-is now: that precision is what catches errors before they reach the shop floor.
+Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
+that precision is what catches errors before they reach the shop floor.
 ## This skill is the lifecycle, not the fit check
 
 `storage-fit` runs during the spec and answers two cheap questions: does this deployment need
@@ -263,6 +256,10 @@ so a retry is safe. It requires an explicit `confirm: true`.
 
 ## Publish
 
+**Close the spec's row when this succeeds.** A data-source row that writes to this table reads
+`schema pending` until now. Replace it with the published `schemaKey` and version, so the row
+records a table that exists rather than one that was intended.
+
 Publishing is the irreversible step and the most guarded. `publishCarbideSchema` re-runs
 validation, requires an `ADDITIVE_VERSION` diff for an existing `schemaKey`, requires
 `confirm: true`, and removes the service-owned `additionalProperties` and `mapsTo` keywords
@@ -276,27 +273,78 @@ problem, not a schema problem. Say so, and do not rewrite the schema in response
 
 ## Reading and writing from the deployed code
 
-**Use the library's `request` helper.** It is authenticated, it sends the API bearer, and
-Carbide Data takes it. There is nothing special to do for this service:
+**Use the library's `request` helper.** It carries the API credential, mints a fresh one when
+the held one is close to expiry, and replays an idempotent call once on a 401 before treating
+the refusal as real:
 
 ```tsx
 const { request, urls } = useMMAuth();
 const page = await request(`${urls.customDataUrl}/<namespace>/<schemaKey>?${query}`);
 ```
 
-If a call has to be built by hand, take the credential from the store rather than from
-anywhere else, and read it per use rather than holding it:
+If a call has to be built by hand, take the credential from the store and read it per use rather
+than holding it:
 
 ```tsx
 const credential = useCredential('api');   // in render, re-renders on refresh
 const { getCredential } = useMMAuth();     // getCredential('api') inside a callback
+
+const page = await fetch(`${urls.customDataUrl}/<namespace>/<schemaKey>?${query}`, {
+  headers: { Authorization: `Bearer ${credential}` },
+});
 ```
 
 **Use the `'api'` purpose.** The store holds `'api' | 'graphql' | 'nats'`, and `'api'` is the
-credential Carbide Data takes. The API and GraphQL credentials carry the same authority today,
-so `'graphql'` happens to work as well, which is a reason to be deliberate rather than a reason
-to relax: the platform is expected to begin issuing audience-specific tokens, and `'api'` is the
-one that stays correct through that.
+platform's user token: a short-lived JWT the login server signs and publishes keys for, carrying
+the signed-in user and their `companyId`. Carbide Data verifies exactly that. **Pick by
+destination**: Hasura takes `'graphql'`, and Carbide Data, the other MachineMetrics services and
+the deployment's own server all take `'api'`.
+
+The service reads the bearer and takes one of two paths: a token beginning `st-` is introspected
+as a service token, and anything else is verified as a JWT against those published keys, with
+`companyId` read from its claims. There is no third path, and a bearer that is neither is refused
+without reaching any of the storage logic.
+
+**Never hold the credential.** It is short-lived and the library replaces it before it expires,
+so a copy taken at mount is the previous one by the time anything uses it. The store's own
+contract says it: read per use, never cache. In render that is `useCredential('api')`, which
+re-renders the component when the value changes; in a callback it is `getCredential('api')`,
+called inside the call rather than captured around it.
+
+Passing the credential as a value is the same mistake wearing a different hat. A helper that
+takes `token: string` freezes whatever was current when the caller read it. One that takes
+`getToken: () => string | null` cannot.
+
+**`isAuthenticated` is the gate, and it is enough.** It turns true once a usable credential is
+held, not when the sign-in is known, so a call made after it can carry one. A surface that shows
+a spinner until then is showing the truth rather than being cautious.
+
+Keep the request function's identity independent of the credential, so a mount-time fetch does
+not fire again on every rotation. The library's own links are built that way: they wait up to
+fifteen seconds for a credential to land rather than sending a bearer that is not there, and give
+up with a `credential_timeout` network error instead of a confusing rejection from the service.
+
+**What a 401 means depends on the method.** On an idempotent request the library mints a fresh
+credential and replays once, and a second refusal signs the user out. On anything else it throws
+`UNAUTHORIZED` and leaves the session alone.
+
+That asymmetry is worth designing around. A refusal that is not about freshness, a scope or a
+tenancy problem, will end the session on a read, and a surface that polls every few seconds will
+reach that verdict quickly and land the operator back at login with nothing explaining why.
+Surface a second refusal where someone can see it rather than letting a poll keep asking.
+
+**A refusal to issue a credential at all is a different failure, and it names itself.** When the
+mint is refused the library raises a `CredentialError` carrying the server's own code, such as
+`jwt_bearer_not_allowed`, and the same error appears as `authError`. It stops retrying for that
+sign-in, because repeating a refusal only produces the refusal again. Show the code: it says
+which side refused and why, which no amount of retrying will. Transient failures, a network drop
+or a 5xx, are the ones that retry, after a short backoff.
+
+**`GET /whoami` answers what the service thinks the caller holds.** It returns `companyId` and
+the `scopes` the service parsed from the same token, so a scope check asks the service rather
+than decoding a token in the browser and hoping the two agree. Ask once a credential is held,
+and treat "not yet known" as its own state rather than as a denial: a check that runs early and
+caches the refusal hides the scope for the life of the component.
 
 **Take the base URL from the library, not from a constant.** `mm-react-tools` resolves
 `customDataUrl` per release stage and exposes it as `useMMAuth().urls.customDataUrl`, so a
@@ -305,16 +353,17 @@ nothing else. A hardcoded host is a deployment that talks to Commercial from Gov
 fine doing it. The `development` stage has no `customDataUrl`, which is the shape to expect
 rather than a fault to work around.
 
-**If a deployment signs in and bounces straight back to login, look for a 401 on a data call.**
-`request` clears the session on any 401 before it throws `UNAUTHORIZED`, and the provider's own
-credential refresh swallows the error, so one 401 empties the session and the route guard
-redirects to login with nothing in the log. It is a loop rather than a failure, and it points
-nowhere near its cause: do not start on redirect URIs, client ids or scopes.
+**If a deployment signs in and bounces straight back to login, look for a read that keeps being
+refused.** A refusal the library cannot fix by minting again ends the session on the second
+attempt, the route guard redirects to login, and the sign-in mints a credential that is refused
+the same way. It is a loop rather than a failure, and its cause is nowhere near the symptom: do
+not start on redirect URIs, client ids or scopes.
 
-The first thing to check is the library version. Under `mm-react-tools` 4.x this call had to
-carry a different credential from the rest of the application, and getting it wrong produced
-exactly that loop. From 5.0 there is one credential store and `request` reads it, so the
-mismatch cannot happen. A project still on 4.x belongs in `setup`, which owns the upgrade.
+**Start with what the service says about the caller**, since the refusal is about authority
+rather than freshness. `GET /whoami` names the company and the scopes the service parsed, which
+separates a wrong tenant from a missing scope in one call. A poll is the usual accomplice: it
+reaches the second refusal within seconds of sign-in, so the loop looks instant and nothing in
+the log names the read that caused it.
 
 ## Query the records
 
@@ -352,6 +401,33 @@ Build that fixture by hand, in the real shape. Do not paste a live response into
 the rows belong to whoever wrote them, and a fixture outlives the session it was captured in.
 Verify against the real service at the exit gate, where the response is read and not kept.
 
+### Writing and changing a record
+
+The MCP tools do not expose record writes, so this is the deployment's own HTTP call. Address
+records by namespace and schema key, the way the rest of the toolchain addresses schemas:
+
+```
+POST /<namespace>/<schemaKey>              body: { data }
+PUT  /<namespace>/<schemaKey>/<recordId>   body: { data, revision }
+```
+
+**A change carries the revision the record had when it was read**, and a write whose revision is
+behind is refused with 409 rather than applied. So a read that only wanted to display a row still
+has to keep the `revision` beside it if anything might later change that row.
+
+**Treat the 409 as a fact about the world, not an error.** Two people acted on one record and the
+service arbitrated. Re-read, and tell the person what happened in those terms: someone else got
+there first. Do not retry a 409 automatically, which would silently overwrite the other person's
+work; that is the whole point of the check.
+
+**That is also the mechanism for a claim.** A surface where one person takes a piece of work
+needs no lock of its own: write the claim with the revision that was read, and the second
+claimant's write is refused by construction. What the design owes is the sentence the loser sees.
+
+There is a newer `/schemas/<schemaId>/records` form. Prefer the namespace paths above anyway,
+because every Carbide tool addresses schemas that way and the alternative means carrying a
+schema uuid through the deployment for no gain.
+
 ## Never do these from an agent
 
 - Delete a schema or a record. The service has delete routes: a record delete is soft and
@@ -361,6 +437,14 @@ Verify against the real service at the exit gate, where the response is read and
 - Hold or cache record data anywhere outside the service. The service applies row-level
   tenancy; a copy does not.
 - Generate a query for the build session that the deployed view could not run in production.
+- Hold the credential. The library replaces it before it expires, so a copy taken at mount is
+  the previous one by the time anything uses it, and the refusal that follows reads as a
+  permission problem when it is a stale copy.
+- Retry a 409 automatically. Two people acted on one record and the service arbitrated; a retry
+  overwrites the one who got there first, which is the thing the check exists to prevent.
+- Let a polling surface keep asking after a refusal the library cannot fix by minting again.
+  It reaches the sign-out verdict within seconds and lands the operator at login with nothing
+  on screen explaining why.
 
 ## If it turns out not to fit here
 

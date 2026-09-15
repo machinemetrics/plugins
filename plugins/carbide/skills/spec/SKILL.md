@@ -1,6 +1,6 @@
 ---
 name: spec
-description: Turn a vague request for a shop-floor application into a written specification before any code is written. Use when someone describes an application they want, when requirements are unclear or contradictory, when a new surface is being added to an existing deployment, or when a build is about to start without a spec.
+description: Turn a request for a shop-floor application into a written specification before any code is written. Use after start has established that nothing is specified yet, when requirements are unclear or contradictory, when a new surface is being added to an existing deployment, or when a build is about to start without a spec. For a request that has not been through start, use start first: it decides whether this is the right phase.
 ---
 
 # Specify before building
@@ -17,29 +17,22 @@ settled stays settled: only the new surface needs answers.
 
 ## Working with the developer
 
-You are working with a developer who is building on MachineMetrics. Treat them as a
-colleague: they may know their shop floor better than they know React, OAuth, or the command
-line, and either way they are the one deciding what gets built.
+They decide what gets built, and they may know their shop floor better than they know React or
+OAuth. That changes what you explain, never how much you assume.
 
-- **Say what it means for what they are building first, then the detail.** One plain
-  sentence of consequence, then the technical part. Never the other way round.
-- **Name the phase you are in.** The skills are the phases: prepare the machine, decide
-  what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells them where they are and what comes next. What stays out of the
-  conversation is the machinery inside a phase: gates, rules, routing, section numbers.
-  Give the reason for a step, never a citation.
-- **Technical detail is welcome when it helps or they ask for it.** Explain a term the
-  first time it earns its place, in half a sentence. Skip the ones that change nothing for
-  them.
+- **Consequence first, then the detail.** One plain sentence about what it means for what they
+  are building, then the technical part.
+- **Name the phase, not the machinery.** "That settles the spec, so we can start building"
+  tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
+  step, never a citation.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
-**They are a peer with a different access surface, not a lesser one.** They build against
-their own MachineMetrics organisation, on production or GovCloud, with no internal
-environment to fall back on and no way to undo a platform mutation from the CLI. That
-changes which options exist, never how much is explained or how much is assumed.
+**They are a peer with a different access surface.** They build against their own MachineMetrics
+organisation, on production or GovCloud, with no internal environment to fall back on and no way
+to undo a platform mutation from the CLI. That changes which options exist.
 
-Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
-is now: that precision is what catches errors before they reach the shop floor.
+Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
+that precision is what catches errors before they reach the shop floor.
 ## What the spec must answer
 
 Ask these one at a time. Do not send a questionnaire.
@@ -80,28 +73,29 @@ For every context input, name the **mechanism that will register this surface** 
 that mechanism supplies it. Not the platform in general: the specific mechanism. They differ,
 and the difference is invisible until the surface is live.
 
-The case that has already cost a shipped deployment: an OperatorView `tab` registered through
-**Settings → Operator Dashboard → Manage Tabs** is a plain iframe with a fixed URL. It performs
-no embeddable handshake, so `useMMAppContext()` is empty and `isEmbedded` is `false`. A spec
-that recorded "machine id from the OperatorView host context" was correct about the platform,
-correct about the documented hook, and still unbuildable through the mechanism `deploy` routes
-them to. `deploy` covers the two kinds of tab and the options when only Manage Tabs is
-available.
+The case that decides most shop-floor surfaces: an OperatorView `tab` gets the embeddable
+handshake, and with it the machine, only as an **app tab**, added by picking a registered view.
+A **URL tab** falls back to a plain iframe, where `useMMAppContext()` is empty and `isEmbedded`
+is `false`. So "machine id from the OperatorView host context" is a correct statement about the
+platform and about the hook, and still unbuildable if the tab is going to be added as a URL.
+`deploy` covers the two paths and what each one requires.
 
-So write the mechanism into the data-source table, not just the source:
-
-| What | Source | Read or written |
-| :--- | :--- | :--- |
-| Machine the operator is at | OperatorView tab embed context, `useMMAppContext().machineId`, **not** supplied by a Manage Tabs custom tab | Read |
+So write the mechanism into the data-source row, not just the source. For the machine an
+operator is standing at, the `Source` cell reads `Host context, useMMAppContext().machineId,
+supplied only to an app tab: see deploy`, and the `Proven by` cell reads `machineId read in the
+playground's tab mode`. Naming the hook alone would hide the half that decides whether it
+arrives.
 
 If a context input cannot be supplied by the available mechanism, that is a spec problem and
 this is where it gets settled: change the surface, change how it is registered, or write down
 that it is blocked and on what. Do not carry it into `implement` as an assumption, because
 nothing downstream re-checks it. What `implement`'s exit gate can prove depends on how the
 surface will be registered: the playground's OperatorView tab mode sends real machine context,
-so a tab meant for the embed is verified there, while a Manage Tabs custom tab is a plain
-iframe that receives nothing and has to obtain the machine itself, from its own URL or from a
-selector it persists. Deciding that here is what keeps the gate meaningful.
+so a tab meant for the embed is verified there, while a tab that falls back to the plain iframe
+receives nothing and has to obtain the machine itself, from a selector it persists or from its
+own URL. Decide here which of the two you are building for, and prefer making the handshake
+work: the fallback constrains the design permanently, and `deploy` lists what it takes to avoid
+it. Deciding that here is what keeps the gate meaningful.
 
 ## The shop's words are not the API's words
 
@@ -116,10 +110,18 @@ run was discovering that **a categorized downtime is an Annotation**.
 | A machine | `MachineTP`, via `machines`. `machineId` is the uuid the Production API filters by, `machineRef` the `Int` GraphQL uses | GraphQL |
 | A shift | Not in GraphQL at all. A real entity in the Production API, usable as a filter and a `groupBy` | Production API |
 | Utilization, OEE, part counts | Metrics, not types | Production API |
+| A scrapped or rejected part | `Reject`, with `rejectReason`, `rejectType` (`SCRAP` or `NONCONFORM`), `value` and `rejectedAt`. **It carries no job field**: scrap by job comes from the Production API's `rejectedParts` grouped by `jobOperation` | Both, for different halves |
+| The scrap reason list | `RejectReason`, hierarchical, configured in Settings and already on the tablets | GraphQL |
+| The job or work order running on a machine | The open `activitySet` on the machine, `closedAt` null. Its `workOrderOperation` carries the ERP work order and **is often null**, because a machine can run without one | GraphQL |
 
 **Check the mapping rather than trusting this table.** It is a starting point for the nouns
 that have cost time before, not an inventory, and the API gains types. Ask `knowledgeBase`
 for the type by name, or have `generateGraphqlQuery` build the query against the live schema.
+
+**Read what the generator returned before running it.** `generateProductionQuery` has answered
+with default metrics and no grouping, quietly dropping what was asked for, which produces a
+plausible number for a question nobody asked. Check that the metrics and the `groupBy` you
+needed are actually in the query, and write it by hand when they are not.
 
 **If a noun is missing from GraphQL, look in the Production API before concluding it does not
 exist.** They do not carry the same things, and an agent reporting that the platform lacks
@@ -144,9 +146,38 @@ Things the platform already owns, which builds routinely re-invent:
 | Operators | Settings, or the ERP mapping on ERP-integrated accounts |
 | Work orders, jobs, parts | Production data, or the shop's ERP through connectors |
 
-In one dry run this single question removed a stored per-machine target, a Carbide Data
-schema, a supervisor surface, and a write path with revision-conflict handling. The spec went
-from `storage: yes` to `storage: no` on it.
+This one question routinely removes a stored value, a schema, a surface, and a write path with
+revision-conflict handling behind it.
+
+**Ask it of the whole request, not only of the values.** Some requests are already a product
+feature end to end, and "log this at the machine with a reason, then show me where it happens"
+is the shape that most often is: scrap and rejects, downtime reasons, and operator sign-in are
+all captured on the tablet and reported on already. A deployment built over one of those does
+not just waste the work, it creates a second and unreconciled record of something the platform
+already holds.
+
+Check it against the account rather than the documentation: query the data and see whether it
+is there and in use. If it is, say so plainly and go to "When the answer is to build nothing".
+
+### When the answer is to build nothing
+
+This is a result, not a failure, and it is the most valuable one this skill produces. It has its
+own output, because the surfaces table cannot describe it.
+
+Write `SPEC.md` with no surfaces table at all. In its place:
+
+- **What was asked for**, in the person's own words.
+- **What already does it**, one row per ask: the feature, where it is configured, and where the
+  answer is read.
+- **The evidence**, from their account rather than from the documentation. Real numbers, real
+  machine names, the query that produced them.
+- **What is left for them to do**: configuration, adoption, a report layout. Usually something,
+  and it is the actual deliverable.
+- **The line `storage: no`** and nothing under entities.
+
+Then stop. Do not route to `implement`, and do not write a surfaces table with a speculative row
+in case they want one later. If they want a surface anyway, on top of the native feature, that is
+a new request and it re-enters through `start` with the native feature as a known data source.
 
 **The column is a read story only.** The GraphQL API has no mutations, so finding that the
 platform already owns something means the deployment can read it and stop, never that the
@@ -200,16 +231,23 @@ Write the spec to `SPEC.md` at the project root. Later skills read it and add to
 `start` reads it to work out where the project is, so it has to be a file rather than
 conversation history.
 
+**Write it from [spec-template.md](spec-template.md)**, rather than assembling the shape from
+the rules below. The rules say what each part means; the skeleton is the part that survives
+being written at the end of a long conversation, when the column most easily lost is the one
+that proves a source answers.
+
 `SPEC.md` must contain both tables, and **no cell in either may be blank**. Two cells are
-filled with the literal word `pending` rather than an answer, and they are named below.
+filled with the literal word `pending` rather than an answer, and they are named below. The one
+exception is a spec that concluded nothing should be built, which has no surfaces table and is
+described above.
 
-A surfaces table:
+**The data-source table has four columns, and the fourth is the one most often left off.** A
+row without its `Proven by` entry has not been through the gate, however complete the other
+three look.
 
-| Surface | Type | Who opens it | Template | Embedded or standalone | Status |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| ... | `widget`, `tab` or `fullpage` | ... | `pending` | `pending` | `specified` |
+The skeleton carries both tables. What each column means is here.
 
-Status is one of `specified`, `built`, `deployed`, `blocked`. `implement` and `deploy` update
+**Surfaces.** Status is one of `specified`, `built`, `deployed`, `blocked`. `implement` and `deploy` update
 the first three.
 
 **`blocked` means specified and known not to be buildable yet**, with the reason written
@@ -227,11 +265,46 @@ replaces both when it scaffolds, and the interface work reads them from there ra
 asking again. `pending` is a filled cell that says "a later skill owns this". A blank cell
 means the spec is unfinished, and `start` routes it back here.
 
-A data-source table:
+**Data sources. Every row is proven with one real call before the gate closes, and the call goes in the
+fourth column.** A source that is named but never exercised is a guess with a table cell around
+it, and the two failure modes it hides are both invisible until the surface is live: the source
+does not exist at all, or it exists and does not carry this value for this account.
 
-| What | Source | Read or written |
-| :--- | :--- | :--- |
-| ... | ... | ... |
+What counts as proof depends on the source:
+
+| Source | Proof |
+| :--- | :--- |
+| GraphQL | A query run against the live schema that returns the field, not a field name read off a type |
+| The Production API | One call, with the real filter this surface will send |
+| Host context | The field read from `useMMAppContext()` in the playground's tab mode |
+| Carbide Data, a published table | The schema read back, so the field names and types in the row are the ones the service holds |
+| Carbide Data, a table this spec creates | Not provable here, and not proven by `storage: yes`. See below |
+| The person, at runtime | Nothing to prove. Write `user input` and move on |
+
+Cite what answered, not that something did: `machines(where:{machineId:{_eq:...}})` rather than
+"GraphQL". The next session reads that cell to write the query.
+
+**A table that does not exist yet is a destination, not a source, and the proof obligation moves
+to what will be stored in it.** Nothing about an unbuilt table can be exercised, and recording
+`storage: yes` beside it proves only that a decision was taken.
+
+So for a row that writes to a new table, prove **every value the deployment does not invent**:
+the machine, the operation, the account, anything carrying a reference to something the platform
+owns. The entry names where that value was read and **what type came back**.
+
+This is the check, and it is not theoretical. A build declared a field holding an account id as
+an integer, because an id reads like a number. Account ids are uuid strings. The schema published
+cleanly, validated cleanly, and could not accept a single record, and a published field's type
+cannot be changed afterwards, so the table was unusable from the moment it existed. Reading one
+account first is what separates those two outcomes.
+
+**The table itself stays unproven until `carbide-data` validates the schema**, which happens in
+`implement`. Write `schema pending` in the entry for that row. It is a filled cell that names
+who closes it, in the way `pending` works in the surfaces table, rather than a gap.
+
+**A source that cannot be proven is not a row, it is a blocker.** Record it as one, with what
+would have to exist. Resolving it later in `implement` means discovering it against a build that
+already assumed it.
 
 An entities table, in the shape [domain-model.md](domain-model.md) describes. A deployment
 with no entities worth naming is rare enough to be worth saying out loud rather than
@@ -257,6 +330,9 @@ have to record it ourselves." That is the storage decision, and it belongs there
 
 Naming a gap does not discharge this gate. A gap written into `SPEC.md` as an open decision
 is the single most common cause of a build that renders and then returns 404.
+
+The same applies to an unproven row. An empty `Proven by` cell is an unfinished spec, exactly
+like an empty `Source` cell, and `start` routes it back here.
 
 ## Produce every number once, from the real API
 

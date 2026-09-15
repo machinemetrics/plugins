@@ -15,29 +15,22 @@ itself and calls into the two references it needs.
 
 ## Working with the developer
 
-You are working with a developer who is building on MachineMetrics. Treat them as a
-colleague: they may know their shop floor better than they know React, OAuth, or the command
-line, and either way they are the one deciding what gets built.
+They decide what gets built, and they may know their shop floor better than they know React or
+OAuth. That changes what you explain, never how much you assume.
 
-- **Say what it means for what they are building first, then the detail.** One plain
-  sentence of consequence, then the technical part. Never the other way round.
-- **Name the phase you are in.** The skills are the phases: prepare the machine, decide
-  what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells them where they are and what comes next. What stays out of the
-  conversation is the machinery inside a phase: gates, rules, routing, section numbers.
-  Give the reason for a step, never a citation.
-- **Technical detail is welcome when it helps or they ask for it.** Explain a term the
-  first time it earns its place, in half a sentence. Skip the ones that change nothing for
-  them.
+- **Consequence first, then the detail.** One plain sentence about what it means for what they
+  are building, then the technical part.
+- **Name the phase, not the machinery.** "That settles the spec, so we can start building"
+  tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
+  step, never a citation.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
-**They are a peer with a different access surface, not a lesser one.** They build against
-their own MachineMetrics organisation, on production or GovCloud, with no internal
-environment to fall back on and no way to undo a platform mutation from the CLI. That
-changes which options exist, never how much is explained or how much is assumed.
+**They are a peer with a different access surface.** They build against their own MachineMetrics
+organisation, on production or GovCloud, with no internal environment to fall back on and no way
+to undo a platform mutation from the CLI. That changes which options exist.
 
-Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
-is now: that precision is what catches errors before they reach the shop floor.
+Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
+that precision is what catches errors before they reach the shop floor.
 ## Before starting
 
 `SPEC.md` must exist with all of the following. It lives at the **project root**, which is
@@ -45,7 +38,7 @@ not necessarily the current directory: a scaffolded app sits at `<name>/app/`, t
 below the root, so check the parents too rather than concluding the spec is missing.
 
 - A surfaces table naming at least one surface and its status
-- A data-source table with no blank cells
+- A data-source table with no blank cells, including a `Proven by` entry on every row
 - **An entities table.** The spec gate requires it and `carbide-data` treats it as a
   prerequisite, so a spec without one is unfinished even when `storage: no` means the storage
   step never runs. A deployment with no named entities is usually a spec that skipped the
@@ -84,201 +77,36 @@ An empty or missing `clientId` in that file is **broken configuration, not a mis
 and the difference matters because the two remedies are opposites. `mmdev oauth dev-apply`
 runs after `mmdev create`, so every scaffold passes through a state where the file exists and
 the client is not in it yet. Treating that state as "no project" is how a working deployment
-gets scaffolded over. Repair it by running `mmdev oauth dev-apply` in that directory, and say
-that is what you are doing.
+gets scaffolded over. Repair it by running `mmdev oauth dev-apply` from the **project root**,
+which is the directory that contains `app/`, not the `app/public/` directory the find just
+reported. `dev-apply` resolves `app/public/default.json` relative to the working directory, so
+run from anywhere else it fails with `Error: app/public/default.json not found` even though the
+file is plainly there. Say that this is what you are doing.
 
 ## 1. Scaffold, only for a new project
 
-Pick the template from the surface type `SPEC.md` settled on:
+**Skip this step entirely if the check above found a `public/default.json`.** The project
+exists, and scaffolding over it destroys its OAuth client and its configuration. Pick up at the
+surface being added instead.
 
-| Surface type | Template | What it wires |
-| :--- | :--- | :--- |
-| `fullpage` | `carbide-app` | Gallery app: host navigation, sidesheet routes, modals |
-| `tab` | `carbide-tab` | OperatorView tab: machine context, kiosk sizing, no navigation |
-| `widget`, or unsure | `carbide` | Base deployment, least wiring to unpick |
+For a new project, **read [scaffold.md](scaffold.md) before running `mmdev create`**. Choosing
+the wrong template costs the machine context and the kiosk sizing, and a name that is not
+kebab-case produces a project that cannot start under Docker at all.
 
-**Run `mmdev create --help` and use what it lists.** It should print `carbide`, `carbide-app`,
-`carbide-tab`, `generic-erp-connector`, `sql-server-connector` and `module`. This table has been
-wrong in both directions before, so read the CLI rather than trusting it. Scaffolding a `tab`
-from `carbide` means the machine context and the kiosk sizing are yours to wire by hand: say
-that out loud rather than discovering it at the embed step.
-
-**What a scaffold contains.** The Carbide templates sign in with OAuth 2.1 and PKCE, so
-`public/default.json` holds a `releaseStage` and a `clientId` and no secret. `carbide-app` ships
-no `Item` demo, its index route renders Home, and the host-sidesheet pattern lives in the
-scaffold's `REGISTRATION.md`. `utils/request.ts` is the authenticated request helper and takes a
-bearer for the calls you add. There is no `public/mm-app-manifest.json`: nothing in the platform
-reads it.
-
-**Two commands must have run first, in this order, and neither is optional:**
-
-```bash
-mmdev login             # authenticates against the selected environment
-mmdev oauth dev-init    # once per environment: writes a LOCAL TEST client under ~/.mmrc
-```
-
-`dev-init` has to precede `mmdev create`, which is a CLI constraint and not negotiable. It
-writes a client for the environment that is active **right now**, so if section 2 later moves
-the project to a different environment, this client is the wrong one and the repair table there
-covers it. `setup` step 5 normally leaves the right client in place already, in which case both
-commands are no-ops.
-
-**Check that the project directory exists, not just the exit code.** An unknown template and a
-missing prerequisite both exit non-zero, so the code is trustworthy, but the directory check
-costs nothing and catches a scaffold that reported success and produced nothing. The
-prerequisite message names only `dev-init` even when `mmdev login` is what is missing.
-
-**Use a kebab-case name**, matching `^[a-z0-9]+(-[a-z0-9]+)*$`: lower case, digits, single
-hyphens, nothing else.
-
-```bash
-mmdev create shift-utilization -t carbide-app
-```
-
-`mmdev create <name>` reads as an invitation to write `ShiftUtilization`. Do not. The name
-becomes the project directory *and* the compose service key, Docker repository names must be
-lowercase, and the result fails at `docker compose up` with `invalid reference format:
-repository name must be lowercase`. Nothing builds. Tracked as mmdev-cli#101.
-
-If the person asks for "Shift Utilization", scaffold `shift-utilization` and say that you did.
-The human-readable title belongs in `SPEC.md` and in the platform registration. **On an
-existing project already named in CamelCase**, lowercase the compose service key in
-`docker-compose.yml` rather than renaming the directory: renaming breaks the OAuth redirect
-and the deploy.
-
-**Never copy an existing project to get started.** Copying carries over another project's
-config and its OAuth client, and the copy is not a clean starting point.
-
-**Write the template name and whether the surface is embedded or standalone into `SPEC.md`**,
-replacing the `pending` in those two cells of the surfaces table. The interface work reads
-them from there instead of asking again, and `start` needs them to route a later change.
-
-**A new surface on an existing project skips this whole step, so fill those cells anyway.**
-Nothing else writes them, and `start` reads `pending` as "a later skill owns this" rather than
-as a gap, so an unfilled pair survives the build and leaves `SPEC.md` without the contract the
-next session needs. Read the values off the project: the template from its README or the shape
-of `app/src`, embedded or standalone from whether the surface renders inside the platform or
-on its own origin. Say which you recorded and where you read them.
-
-Then give the project its client. `dev-init` ran above; `dev-apply` is the half that needs a
-project to write into, which is why it is only possible now:
-
-```bash
-mmdev oauth dev-apply   # copies that client into this project's public/default.json
-```
-
-**`dev-init` is shared, and it is per environment.** `~/.mmrc` is a directory holding a client
-per environment, so one exists for each environment you have run it in, and every project
-scaffolded against a given environment carries that same `LOCAL TEST` client, with its
-redirect list growing one entry per deployment. Fine while the work is local.
-
-This is also why the OAuth leg of the environment invariant can drift on its own: `dev-apply`
-copies whichever client belongs to the environment that was active when it ran.
-
-**A deployment intended for real users needs its own client**, with a real name and its own
-redirect:
-
-```bash
-mmdev oauth add -n "<deployment name>" -r "https://<host>/authorize/mm/callback"
-```
-
-That prints a `CLIENT_ID` and a `CLIENT_SECRET`. **Only the id goes into
-`public/default.json`.** The CLI still prints the secret because the platform still mints one,
-not because a PKCE deployment has anywhere to put it: discard it. `mmdev oauth list` shows what
-exists; `mmdev oauth dev-reset` clears the local client from `~/.mmrc`.
-
-Note the client id is served publicly from the deployed site at `/default.json`. That is by
-design: the registered redirect list is the control, not the id, which is why replacing that
-list carelessly matters. Keep a deployment's redirect list tight.
-
-**There is no client secret.** The Carbide templates sign in with OAuth 2.1 and PKCE:
-`MMProvider` takes no `clientSecret`, the auth context exposes no `accessToken`, `dev-init`
-stores only a client id, and `dev-apply` strips a `clientSecret` that an older scaffold still
-carries. If you find one in `public/default.json`, the project predates the current toolchain
-and `setup` covers upgrading it.
-
-**No client secret is not the same as no credentials.** The browser still holds bearer tokens:
-the library keeps a credential store and hands one out per call. They are short-lived rather
-than harmless, so do not log them, do not put them in a URL, and do not persist them anywhere
-the bundle can read back.
+Whatever the template, **write it and whether the surface is embedded or standalone into
+`SPEC.md`**, replacing the two `pending` cells. A new surface on an existing project skips the
+scaffold and still fills them, from what the project already is.
 
 ## 2. Reconcile the environment before writing code
 
-Three things must name **the account's** environment, and a fresh scaffold does not guarantee
-it. Agreeing with each other is not the test: three legs consistently naming `staging` is a
-configuration that builds, passes its tests, deploys, and then cannot reach the API, because
-the data lives only on that account's environment: `production` on Commercial, `govcloud` on
-GovCloud. Check the name, not only the consistency.
+Four things have to name the same environment: the active `mmdev` environment, the OAuth client
+the project carries, the `releaseStage` in `app/public/default.json`, and the environment the
+gateway answers on. A mismatch does not fail loudly. It produces a deployment that authenticates
+against one tenant and reads from another.
 
-| | Where |
-| :--- | :--- |
-| The active `mmdev` environment | `mmdev environment list` |
-| The OAuth client's environment | Whichever client `public/default.json` names. See the repair table below |
-| The deployment's config | `public/default.json`: `releaseStage`, and `urls` only if something set it |
-| **The gateway's environment** | Not printed anywhere. Establish it by asking, see `setup` |
-
-**There are four legs, not three.** The gateway's is the one nobody prints and everybody
-assumes, and a mismatch there sends every symptom towards the code instead. `setup` covers
-how to establish it.
-
-If they disagree, the correct one is the account's own environment: `production`, or
-`govcloud` on GovCloud. Make the others match it. Do not ask which to target, because there is
-no other option. Each leg has its own remedy, so name the leg before reaching for
-a command:
-
-| Leg | Read it with | Fix it with |
-| :--- | :--- | :--- |
-| Active `mmdev` environment | `mmdev environment list` | `mmdev environment switch <env>` |
-| OAuth client's environment | `mmdev oauth list` | See the two cases below. **Not `dev-apply` on a deployed project** |
-| Deployment config | `cat public/default.json` | Set `releaseStage`. **Remove `urls`, do not edit it** |
-
-**`urls` is a trap.** `mm-react-tools` resolves per-stage defaults from `releaseStage`, so a
-correct deployment has no `urls` at all. Pasting an environment's API address in to fix a
-mismatch pins the deployment to that endpoint and survives every later stage change: on
-GovCloud that means a deployment silently talking to Commercial. Set the stage and delete any
-`urls` override that is already there.
-
-**On `mm-react-tools` 5.1 the stage carries the partition.** The stages are `production`,
-`govcloud`, `staging` and `development`, and each resolves the login, app, API, GraphQL, NATS
-and Carbide Data hosts together, readable at runtime as `useMMAuth().urls`. A GovCloud
-deployment is `releaseStage: "govcloud"` and needs no `urls` at all.
-
-A GovCloud deployment carrying `releaseStage: "production"` plus a pinned `urls` predates this
-and is a repair rather than a mismatch to leave alone: `setup` covers it. Keeping both leaves a
-pin that outlives the next host change, and a host forgotten from the override talks to
-Commercial in the meantime. See `setup`'s `partitions.md` for the addresses.
-
-**`mmdev oauth dev-apply` is only safe on a scaffold you are still building.** It copies the
-machine's shared `LOCAL TEST` client into `public/default.json`, overwriting whatever is
-there. On a deployment that already has its own client that destroys the deployment's client id
-and its registered redirect list, and the app keeps working locally while being broken for
-everyone else.
-
-| Project | Repair |
-| :--- | :--- |
-| New, or local-only, still carrying `LOCAL TEST` | After switching, `mmdev oauth dev-init` then `mmdev oauth dev-apply`. `dev-init` is per environment, and the client that `dev-apply` copies belongs to whichever environment was active when `dev-init` last ran |
-| Has its own client, or is deployed anywhere | `mmdev oauth list`, pick the client that belongs to this deployment in the target environment, and write its id in by hand. If none exists for that environment, `mmdev oauth add` a new one with the deployment's real redirect |
-
-**`public/default.json` is usually the wrong leg**, and it is wrong the moment it is created
-rather than by drifting. The template writes `releaseStage: "production"` regardless of the
-active environment, so a scaffold on `staging` produces a production stage against a staging
-client. Prefer switching `mmdev` to the environment you actually want, repairing the client
-by the table above, and setting `releaseStage` to match, rather than switching `mmdev`
-backwards to agree with a stale file.
-
-That file may also omit `urls` entirely even though the template's own type marks it required.
-That is not a fault: `mm-react-tools` merges built-in per-stage defaults underneath, keyed off
-`releaseStage`. Set the stage and let the library resolve the URLs. Do not paste an `apiUrl` in
-to fix a mismatch.
-
-Do not skip this because a build succeeds. A mismatch here produces authentication failures
-much later that look like anything but a configuration problem.
-
-**Changing the environment later means a new OAuth client, not just a config edit.** Clients
-are per environment, so a client created on `staging` does not exist on `production`. Switching
-requires `mmdev login` for the new environment, a fresh client, and a redeploy, and because
-`mmdev oauth` has no delete, the old client stays behind. That cost is the reason to get the
-environment right in `setup` rather than here.
+**Read [environment.md](environment.md) before writing code on a fresh scaffold**, and again
+whenever a deployment answers from an environment nobody chose. It has the four legs, how to
+read each one, and which repair applies to which mismatch.
 
 ## 3. Build the interface
 
@@ -314,11 +142,46 @@ Two consequences that change the design:
 - **`isVisible` tells the tab whether it is on screen.** OperatorView keeps a tab mounted
   while hidden, so a polling tab that ignores this burns requests on a tablet all shift.
   Gate every poll and every subscription on it.
+- **`operationId` is not a platform reference, and it is the one field in that table you
+  cannot query with.** It is OperatorView's own job identifier, and its shape depends on which
+  flow the company runs: a synthetic `workorder-<workOrderId>-<sequenceNumber>` string on the
+  APM and NATS flows, the activity set's `jobId` on the standard flow, and `null` whenever no
+  activity is open. Use it to tell one job from the next within a session, or to detect that
+  the job changed. Do not store it as a foreign key, and do not expect to look it up.
 
-The published `useMMAppContext` page describes the hook in its widget-settings role, as the
-consumer of values declared with `useMMAppSetting`, and does not list the tab context fields.
-That is a documentation gap, not a different hook: the same hook returns what the host sent.
-So treat the table above as a snapshot and check the current page before relying on it.
+**To read the job that is actually running, query it.** The open activity set on the machine is
+the running job, and its `workOrderOperation` carries the ERP work order when there is one:
+
+```graphql
+activitySets(
+  where: { machine: { machineRef: { _eq: $ref } }, closedAt: { _is_null: true } }
+) {
+  activitySetRef
+  workOrderOperation {
+    workOrderOperationRef
+    sequenceNumber
+    status
+    workOrder { workOrderId partNumber }
+  }
+}
+```
+
+`closedAt: null` is what makes it the current one. **`workOrderOperation` is frequently null**,
+because a machine can be running without an ERP job attached, so the job is an optional part of
+any record built from this, never a required one.
+
+**The published `useMMAppContext` page does not list these fields, and the table above is the
+authority on them.** That page describes the hook in its widget-settings role, as the consumer
+of values declared with `useMMAppSetting`, and the machine fields appear nowhere on it. The
+same is true of `useMMAppParams`, whose page lists `isConfiguring`, `isEmbedded`, `colorMode`,
+`isFullScreen` and `isEditing` and omits `isVisible` and `language`. It is one hook either way:
+it returns whatever the host sent, and OperatorView sends the machine.
+
+**An absence on those two pages is not evidence that a field does not exist.** The fields are
+set in OperatorView's `CustomTabZone`, which builds `{ operationId, machineId, machineRef,
+partCount }` and passes it to `MMEmbeddableZone`, which posts it as `set-context`. To settle the
+question rather than infer it, run the playground's OperatorView tab mode and read what
+`useMMAppContext()` returns.
 
 **Look the SDK up, do not recall it.** The `knowledgeBase` tool serves the developer
 documentation, including every `mm-react-tools` hook, the modal and sidesheet contracts, and
@@ -328,6 +191,10 @@ https://developers.machinemetrics.com.
 
 A hook signature invented from memory is the most expensive kind of wrong here, because it
 compiles.
+
+The tab context fields above are the one exception: those pages are incomplete, so a lookup that
+comes back empty there confirms nothing. Everywhere else, the served documentation wins over
+recall.
 
 **`useProductionQuery` takes the query as a JSON string, not an object.** The underlying
 `request` expects an already-serialized body and hands it to `fetch` untouched, so passing an
@@ -410,41 +277,24 @@ Three properties, all checkable:
 
 ### Listing machines
 
-A machine list is the most common first query and the easiest to get subtly wrong. The
-canonical shape, from the GraphQL reference:
+A surface that lets someone pick a machine, or shows more than its own, reads the list from
+GraphQL. **Read [machines.md](machines.md) for the query**: it carries the two identifiers,
+which of them each API takes, and the filter that keeps decommissioned equipment out of a list
+an operator has to choose from.
 
-```graphql
-query Machines($where: MachineTP_bool_exp) {
-  machines(where: $where, order_by: { name: asc }) {
-    machineId
-    machineRef
-    name
-    make
-    model
-    decommissionedAt
-  }
-}
-```
+### Who the user is
 
-Three things to get right:
+A shop-floor surface has **two identities available, and they answer different questions**: the
+operator standing at the machine, and the account the deployment signed in as. On a shared
+tablet those are never the same person, and picking the wrong one puts the tablet's name on
+every record.
 
-- **Ask for the fields you need and no more.** `machines` exposes activity sets, annotations,
-  current alarms, current states, operator runs, rejects and more as nested collections.
-  Selecting them by reflex turns a machine picker into an expensive query.
-- **`machineRef` is an `Int`, `machineId` is a uuid string.** They are not interchangeable and
-  the Production API filters by `machineId`. A schema field storing a ref should be a number.
-- **Filter out decommissioned machines.** `decommissionedAt` is non-null on retired machines,
-  and they otherwise appear in the list. An operator picking a machine that no longer exists
-  is a support call.
+**Ask the operator who they are, pre-filled from the open operator run**, and write that into
+`SPEC.md`. It costs one tap and it is the only answer that is current by construction.
 
-Prefer `generateGraphqlQuery` over writing this from memory: it is generated against the live
-schema, and the snippet above is a starting point, not a guarantee for a given tenant.
-
-**If the gateway is unreachable**, say which verification you are giving up. A read-only view
-can proceed and verify query shapes at runtime. Anything that reads or writes Carbide Data
-cannot proceed on assumption.
-
-See [mmdev.md](mmdev.md) for the CLI surface.
+**Read [identity.md](identity.md) whenever a surface records who did something**, gates a
+control on who someone is, or shows a person's name. It has the query, the two cases where
+asking is the wrong shape, and what the browser account is good for.
 
 ## 6. The exit gate
 
@@ -465,22 +315,43 @@ Before starting a playground, check whether one is already running:
 ss -ltnp 2>/dev/null | grep -E ':(3000|4[0-9]{3})( |$)' || lsof -iTCP -sTCP:LISTEN -P | grep -E ':(3000|4[0-9]{3})( |$)'
 ```
 
+That line covers Linux and macOS, trying `ss` first and falling back to `lsof`. Windows has
+neither: there, run `netstat -ano | findstr ":3000 :4"`, which prints the owning process id in
+the last column.
+
 A playground from an earlier session, possibly days old and on a different port, is a common
 way to spend an hour proving something about the wrong process. The playground takes the first
-free port from 4000 upward, so do not assume 4000. The matcher covers 4000-4999; the four-digit
-bound is what keeps it from matching an unrelated ephemeral port such as `:40911`. If every port
-in that band were taken the check would miss the playground, which in practice means something
-else is very wrong.
+free port in the range 4000-4010, so do not assume 4000, and read the URL it prints. The matcher
+covers 4000-4999, wider than that range on purpose; the four-digit bound is what keeps it from
+matching an unrelated ephemeral port such as `:40911`. If all eleven of the playground's ports
+are held it does not fall back any higher: it prints `No available ports found between 4000 and
+4010` and starts nothing, so a missing playground with that message means ports to free, not a
+port to hunt for.
 
 Then run the deployment and the playground together. **The playground is a separate host
 page, not a runner.** Starting both is not connecting them:
 
 ```bash
 npm start          # the deployment, in the project's app/ directory, on port 3000
-mmdev playground   # the host page, on the first free port from 4000 up
+mmdev playground   # the host page, on the first free port in 4000-4010
 ```
 
 Open the playground URL it printed, not one you assumed.
+
+**Reach the deployment at `http://development.machinemetrics.com:3000`, never at
+`localhost:3000`.** The two are the same server: that hostname is a public record pointing at
+`127.0.0.1`, and the dev server binds `0.0.0.0` already, so nothing has to be restarted to use
+it. The difference is which origin the OAuth client trusts. The `LOCAL TEST` client registers
+its redirects on the `development.machinemetrics.com` hostname, so a `localhost` origin is
+refused by the embedded credential broker, which surfaces as a 400 on
+`/oauth/embedded/credential` rather than as anything mentioning the hostname.
+
+This applies to every URL handed to a person to open, including the one pasted into the
+playground's embed modal. The playground serves itself on the same hostname for the same reason.
+A tab URL to paste therefore looks like
+`http://development.machinemetrics.com:3000/tab`. The playground supplies the machine over the
+handshake, the same way OperatorView does, so nothing about the machine belongs in that URL
+either.
 
 **A dev server does not survive the session that started it.** Close the terminal, let the
 machine sleep, or end the Claude Code session, and `npm start` goes with it. The surface then
@@ -491,7 +362,8 @@ rather than the socket. It was misread as an auth failure twice in one dry run.
 Check the process before you check the credentials:
 
 ```bash
-lsof -iTCP:3000 -sTCP:LISTEN
+lsof -iTCP:3000 -sTCP:LISTEN            # macOS and Linux
+netstat -ano | findstr ":3000"          # Windows, in PowerShell or cmd
 ```
 
 Nothing listening means restart `npm start`, not re-authenticate. Re-running `mmdev login` on
@@ -510,88 +382,49 @@ dev server to one environment without changing which one is active. Use that rat
 switching `mmdev` back and forth, which changes the answer for every other project on the
 machine.
 
-A query-string fallback that reads the machine from the URL is a leftover from when the
-playground could not send context. If you meet one in an existing project, remove it: an app
-that reads its machine from the URL is wrong even when it works, because an OperatorView tab
-embed never puts it there.
+A query-string fallback that reads the machine from the URL is a leftover from a URL tab. If you
+meet one in an existing project, remove it: an app tab is handed its machine, so reading it from
+the URL is wrong even where it appears to work.
 
-### Check every utility class actually exists
+### The exit gate blocks
 
-A utility class the stylesheet does not define is not an error and not a warning. It silently
-does nothing, and the page renders wrong. This has reached a live screen: collapsed columns
-and a headline number that never got large, with nothing in any log.
-
-`components/SKILL.md` covers the mechanism and how to verify a single class. What the gate
-needs is the repeatable version: **extract every static `className` token in `src/` and fail
-on any that neither the library stylesheet nor the app's own CSS defines.** Write it as a test
-so it runs again on every change:
-
-```
-src/__tests__/utilityClasses.test.ts
-```
-
-**Check both sources.** A small scoped plain-CSS rule in the app is the recommended fallback
-for values the precompiled stylesheet lacks, so a checker that consults only
-`mm-react-components.css` rejects the escape hatch the component rules tell you to use. Let a
-token pass if either side defines it.
-
-Vite's `import.meta.glob` and `?raw` imports are the straightforward way to read both
-stylesheets, and the template's `tsconfig.json` includes `vite/client`, so they are available
-without adding anything.
-
-**Do not turn on `css: true` globally to make this work.** The library stylesheet is over
-200 KB, and a global setting makes Vitest transform it on every test file that imports a
-component, which starves the worker pool: unrelated bootstrap tests start failing on the 5 s
-timeout, which looks like a bug in the code under test rather than a config change. Leave `css` off, which is
-the template's default, and have the checker read the stylesheets as text with the `?raw`
-imports described above. Raw imports are not affected by the `css` setting, so the checker
-gets its content and no other test pays for it. Confirm by running the full suite, not the
-checker alone: the symptom of getting this wrong shows up in the other tests.
+**This gate blocks. It is not a checklist to report against.** A line that cannot be satisfied
+stops the build from being called done, and the remedy is to fix what it caught, not to note it
+and continue. There is exactly one way past an unsatisfied line, and it is described after the
+list.
 
 Do not treat the build as done until all of these are true:
 
 - The deployment ran in the playground, with real authentication, not in a visual harness
-- Every data source in `SPEC.md` was exercised, not just rendered
+- Every data source in `SPEC.md` was exercised, not just rendered, and no row still reads
+  `schema pending`: publishing the schema is what closes those
 - **If `storage: yes`:** writes were performed and read back **from storage itself**, with
   `executeCarbideQuery`, not by looking at the screen that displays them
 - **If `storage: no`:** every read was served by the real API, and you said out loud that
   there is no write path to exercise
+- Every GraphQL query the deployment sends was run once against the live schema, and the
+  assertion that it still matches lives in the test suite
 - One error path was triggered deliberately
 - No mock or fixture data path remains reachable
 - Every static `className` in the project resolves in the stylesheet
 - For a `tab`, polling and subscriptions are gated on `params.isVisible`
-- For a `tab` registered as an **OperatorView tab embed**, the machine comes from
-  `useMMAppContext()` and no query-string fallback remains
+- For an **app tab**, the machine comes from `useMMAppContext()` and no query-string fallback
+  remains
 
-**A screen that looks right is not evidence.** Query the rows back on every state the surface
-can write. Two failures in one field run were invisible on screen and obvious in the rows. A
-list rendered nothing because the reader decoded the wrong envelope while the writes were
-landing perfectly. A "claimed and closed" flow had never written the close at all, because the
-button that sends it renders only for the person who claimed the record, and the check
-compared a different identity field than the one written. Both looked like success.
+[class-audit.md](class-audit.md) has the procedure behind the `className` line.
 
-That last one is a shape worth naming: **write one identity, compare another**. If a record
-stores who did something and the interface gates on it, the value written and the value
-compared must come from the same expression, and a test has to cover the gate rather than the
-write.
+**[mmdev.md](mmdev.md) is the CLI surface**: every command these steps use, what each one
+writes, and the failures worth recognising.
 
-**For a `tab` registered as an OperatorView tab embed, check the machine context in the
-playground's tab mode.** It sends real context, so this is a line the gate covers rather than a
-caveat it has to make. Confirm `useMMAppContext()` returns a machine, and that no query-string
-fallback is left behind. A Manage Tabs custom tab is the other case entirely, and the paragraph
-after this one is the one that applies to it.
+### When a gate line cannot be satisfied
 
-How the tab will be registered still decides what the context is worth, and `spec` should have
-settled it:
+A line that cannot be met is a finding, not a formality. Say which line, what satisfying it
+would take, and what shipping without it risks, then let the person decide. **The surface stays
+`specified` rather than becoming `built`**, with the unmet line recorded beside it, and `deploy`
+reads that status.
 
-- **An OperatorView tab embed** supplies `{ machineId, machineRef, operationId, partCount }`.
-  This is the case the playground now reproduces.
-- **A Manage Tabs custom tab** supplies nothing at all: it is a plain iframe. The deployment
-  obtains the machine itself, from its own URL or from a selector it persists per tablet, and
-  the bullet above does not apply: there a query string is the mechanism rather than a leftover.
-  `deploy` covers both, including that the URL route needs one tab entry per machine.
-
-Either way, do not report a `tab` as working on the strength of the playground alone.
+**Read [gate-exceptions.md](gate-exceptions.md) before taking that route.** It has what to say,
+and the two ways a build passes this gate while still being broken.
 
 ## Next
 

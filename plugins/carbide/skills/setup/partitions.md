@@ -1,5 +1,9 @@
 # Partitions
 
+Read this when a deployment has to name a host, a partition has to be confirmed, or a
+GovCloud account is involved. It carries the two reachable partitions, the addresses a probe
+needs, and what a partition decides that nothing else does.
+
 MachineMetrics runs in two separate partitions. They are different deployments on different
 infrastructure, with no routing between them. An account belongs to exactly one.
 
@@ -67,14 +71,13 @@ service returns.
 instead of pasting a base URL in, so a deployment that moves partitions moves with it. The
 table stays here because probes and `curl` checks need a literal address.
 
-The accessor is `useMMAuth().urls.customDataUrl`. That is a snapshot of an SDK shape rather
-than the contract: check the current `knowledgeBase` page, or
-https://developers.machinemetrics.com, before relying on the exact spelling.
+`carbide-data` owns how a deployment reads that address and what to do when a stage has none.
+This table exists for the probes and `curl` checks that need a literal one.
 
-**Do not construct a host by analogy from a name.** The `development` stage has no
-`customDataUrl` at all, and the `staging` one is on an unrelated domain. If a build needs
-Carbide Data on an internal environment, read the stage's value from the library or ask the
-Carbide Data owners rather than guessing.
+**Do not construct a host by analogy from a name.** The `staging` value is on an unrelated
+domain, so a name that looks like a pattern is not one. If a build needs Carbide Data on an
+internal environment, read the stage's value from the library or ask the Carbide Data owners
+rather than guessing.
 
 ### Confirming a route without a credential
 

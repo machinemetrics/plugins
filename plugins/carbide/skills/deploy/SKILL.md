@@ -1,6 +1,6 @@
 ---
 name: deploy
-description: Host a finished deployment, register it with MachineMetrics so it appears in the platform, and register its URL as an OAuth redirect. Covers the recommended Netlify path and the requirements any other host must meet. Use when a build is ready to ship, when someone asks about hosting, deploying, registration or embedding, or when a deployed application does not appear or does not authenticate.
+description: Host a finished deployment, register it with MachineMetrics so it appears in the platform, and register its URL as an OAuth redirect. Covers the recommended Netlify path and the requirements any other host must meet. Use after a surface has passed implement's exit gate, when someone asks about hosting, deploying, registration or embedding, or when a deployed application does not appear or does not authenticate.
 ---
 
 # Deploy and register
@@ -13,29 +13,22 @@ common way a project stalls, so ask where it will be hosted during the spec.
 
 ## Working with the developer
 
-You are working with a developer who is building on MachineMetrics. Treat them as a
-colleague: they may know their shop floor better than they know React, OAuth, or the command
-line, and either way they are the one deciding what gets built.
+They decide what gets built, and they may know their shop floor better than they know React or
+OAuth. That changes what you explain, never how much you assume.
 
-- **Say what it means for what they are building first, then the detail.** One plain
-  sentence of consequence, then the technical part. Never the other way round.
-- **Name the phase you are in.** The skills are the phases: prepare the machine, decide
-  what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells them where they are and what comes next. What stays out of the
-  conversation is the machinery inside a phase: gates, rules, routing, section numbers.
-  Give the reason for a step, never a citation.
-- **Technical detail is welcome when it helps or they ask for it.** Explain a term the
-  first time it earns its place, in half a sentence. Skip the ones that change nothing for
-  them.
+- **Consequence first, then the detail.** One plain sentence about what it means for what they
+  are building, then the technical part.
+- **Name the phase, not the machinery.** "That settles the spec, so we can start building"
+  tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
+  step, never a citation.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
-**They are a peer with a different access surface, not a lesser one.** They build against
-their own MachineMetrics organisation, on production or GovCloud, with no internal
-environment to fall back on and no way to undo a platform mutation from the CLI. That
-changes which options exist, never how much is explained or how much is assumed.
+**They are a peer with a different access surface.** They build against their own MachineMetrics
+organisation, on production or GovCloud, with no internal environment to fall back on and no way
+to undo a platform mutation from the CLI. That changes which options exist.
 
-Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
-is now: that precision is what catches errors before they reach the shop floor.
+Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
+that precision is what catches errors before they reach the shop floor.
 ## Requirements any host must meet
 
 Whatever they deploy to, it must be:
@@ -47,6 +40,22 @@ Whatever they deploy to, it must be:
 A laptop with a tunnel does not qualify. It works in a demo and fails in production, so do not
 let it become the plan. If there is no sanctioned hosting, that is the first problem to
 solve, ahead of any code.
+
+## Check the build passed its gate
+
+`implement`'s exit gate is what separates a deployment that works from one that renders. Read
+each surface's status in `SPEC.md` before deploying it:
+
+- **`built`** means the gate passed. Deploy it.
+- **`specified`** means it did not, and the row says which line was left unmet. A surface whose
+  storage round-trip never ran has an untested write path, and deploying it does not test it
+  either: the same failure arrives later, in front of an operator.
+
+A `specified` surface can still be deployed, and sometimes should be, because production is
+occasionally the only place an environment problem becomes legible. Say so explicitly when that
+is the reason, name the unmet line, and **do not describe the result as working**. It is a
+deployment with a known untested path, and the person needs to hear it in those words before
+they put it in front of anyone.
 
 ## Which path applies
 
@@ -224,29 +233,65 @@ skips this works perfectly and is invisible to its users.
 Registration needs a name, the deployed URL, and an icon. Where you do it depends on the
 surface, and only one of the two is self-serve.
 
-**An OperatorView `tab` is self-serve.** The developer adds it themselves, and an admin can
-do it without MachineMetrics:
+**An OperatorView `tab` is added from the same place either way, and the step in the middle
+decides whether it gets a machine.** Read the section below before doing this, because the two
+paths are not interchangeable and only one of them can be changed afterwards without a new tab.
 
 1. In the MachineMetrics app, go to **Settings** then **Operator Dashboard** then
    **Manage Tabs**
 2. Click **Add Tab**
-3. Fill in **Tab Name**, the deployed **URL**, an **Icon**, and which **Machines** it applies
-   to
-4. Save. The tab appears on the tablets.
+3. **Pick the registered view from the gallery.** This is the step that matters: the tab is
+   stored against the view, and that is what earns the machine. Pasting the deployed URL here
+   instead produces a URL tab, which renders and authenticates and never receives a machine
+4. Fill in the **Tab Name**, an **Icon**, and which **Machines** it applies to
+5. Save. The tab appears on the tablets.
+
+Adding the tab is self-serve, and an admin can do it without MachineMetrics. Getting the view
+into the gallery in the first place is not: that is the registration described below.
 
 Managers, Executives, and IT Admins can do this. Tabs can also be dragged to reorder, and the
 order on that settings page is the order on the tablets. Custom tabs are embedded in an
 iframe, which is why the HTTPS and framing checks below matter: a site that blocks iframes
 shows a blank tab with no error.
 
-### A Manage Tabs custom tab supplies no context
+### Whether a custom tab gets machine context
 
-**This is the trap in this skill, and it has already shipped a deployment that could not
-work.** Read it before telling anyone their tab is done.
+**Settle this before telling anyone their tab is done.** A tab that renders, authenticates and
+has no machine looks finished and is not.
 
-A tab added through Manage Tabs is a **plain iframe pointed at a fixed URL**. It is the same
-mechanism the product documents for Google Docs, YouTube videos and third-party CNC
-calculators. It performs no embeddable handshake, so:
+**How a tab is added decides whether it gets machine context**, and there are two ways to add
+one: a **URL tab** and an **app tab**. Those are the platform's own names for them, and the rest
+of these skills use the same two.
+
+**A URL tab** is added by pasting a URL. OperatorView tries to work out whether it can run the
+handshake by fetching `<origin>/mm-app-manifest.json`, and a scaffolded Carbide deployment fails
+that probe: no template ships the file, and on Netlify there is no CORS header to read it with
+either. The tab falls back to a plain iframe, the same mechanism the product documents for
+Google Docs, YouTube videos and third-party CNC calculators. **Do not fix this by adding a
+manifest.** The templates drop the file deliberately, and the probe belongs to the older way a
+tab could be added.
+
+**An app tab** is added by picking a registered view from the app gallery. It is stored with the
+view's `appId` rather than a URL, OperatorView resolves it against the gallery, fills in the URL
+and marks the tab `isEmbed: true`, and an `isEmbed` tab goes straight to the embedded zone: full
+`{ machineId, machineRef, operationId, partCount }`, no manifest, no CORS question. **Only an app
+tab receives the machine.** Registration is what earns it, so it belongs in the plan from the
+start rather than being discovered at the end.
+
+**The gallery path is feature-flagged, and it rests on a platform rollout.** Three things have to
+be true, and only the first is visible from the deployment:
+
+- The app gallery is enabled for the company.
+- OperatorView is on a release that resolves a gallery tab to its view.
+- The gallery service can verify the operator's token, which means the login server publishing
+  its signing keys and the gallery being configured to check them for that partition.
+
+The third is the one that catches people out, because a company can have the feature switched on
+in a partition where the rest has not landed, and the tab then falls back silently. Confirm all
+three rather than assuming them, and say which of the two paths the tab will take.
+
+Confirm the outcome in the running tab rather than reasoning about it: `useMMAppParams()`
+reporting `isEmbedded: false` means it fell back. When it does fall back:
 
 - `useMMAppContext()` is empty. There is no `machineId`, no `operationId`, nothing.
 - `useMMAppParams()` reports `isEmbedded: false`.
@@ -259,31 +304,42 @@ attached to. Nothing errors. The tab simply has no subject.
 The diagnostic tell is `isEmbedded: false`. If a tab is embedded and reports that, the
 handshake did not happen and no amount of application code will produce a machine.
 
-**The two kinds of tab are not the same thing:**
+**The two outcomes are not the same thing:**
 
-| | Manage Tabs custom tab | OperatorView tab embed |
+| | Fell back to the plain iframe | Passed the probe, or `isEmbed` set |
 | :--- | :--- | :--- |
-| Added by | The developer, Settings → Operator Dashboard → Manage Tabs | Not self-serve |
 | Mechanism | Plain iframe, fixed URL | Embeddable zone, `postMessage` handshake |
 | `isEmbedded` | `false` | `true` |
 | Host context | None | `{ machineId, machineRef, operationId, partCount }` |
 | Host params | None | `{ language, isVisible }` |
-| Available | Today, self-serve | The library half ships: `mm-react-tools` 5.x, `mm-react-embeddable` 2.x. Registering the embed is not self-serve |
 
-**If the surface needs to know its machine and only Manage Tabs is available**, say so plainly
-rather than shipping it. There are three honest options, and the first is the only one that
-works today without asking the operator:
+Both are reached through Settings → Operator Dashboard → Manage Tabs, which is self-serve. The
+library half ships already: `mm-react-tools` 5.x and `mm-react-embeddable` 2.x.
 
-1. **One tab per machine**, each URL carrying `?machineId=<uuid>` and scoped in Manage Tabs to
-   that machine. The deployment reads it from its own URL, which works because a custom tab is
-   standalone rather than embedded. Costs one tab entry per machine, and a new machine needs a
-   new entry.
-2. **A machine selector inside the deployment**, persisted per tablet. One tab entry, but the
-   operator has to tell the application which machine they are standing at.
-3. **Ask for the OperatorView tab embed.** On `mm-react-tools` 5.x the deployment side is ready
-   and the playground's tab mode proves it locally, so what is left is registration, which is
-   not self-serve. That makes this a request with a lead time rather than a wait for software.
-   If the answer is no or not yet, one of the first two options ships instead.
+**If the surface needs to know its machine, get it added as a gallery view before reaching for
+a workaround.** In order of preference:
+
+1. **Register the view and add the tab from the gallery.** This is the only path that gets real
+   machine context, and it needs no change to the deployment's code at all. It has two halves,
+   and they are not equally self-serve:
+   - **Adding the tab is self-serve.** Settings, Operator Dashboard, Manage Tabs, then pick the
+     view from the gallery rather than pasting a URL. What gets stored is the view's id, which
+     is what earns the handshake.
+   - **Getting the view into the gallery is a registration**, in the same family as the
+     `widget` and `fullpage` registrations below, which are not self-serve. Ask MachineMetrics
+     with the name, the deployed URL and the surface type in hand, and confirm the company has
+     the app gallery enabled while you are asking, since the feature is flagged.
+2. **A machine selector inside the deployment**, persisted per tablet. One tab entry, the
+   operator tells the application which machine they are standing at once, and it keeps working
+   unchanged if the tab later becomes an embed.
+3. **One tab per machine**, each URL carrying `?machineId=<uuid>` and scoped in Manage Tabs to
+   that machine. Last resort, not the default: it only works while the tab stays a URL tab, it
+   costs one tab entry per machine, a new machine needs a new entry, and the same deployment
+   ends up reading its machine from two different places once the gallery path arrives. A design
+   that reaches for this before asking about option 1 has skipped the real fix.
+
+Verify with the playground's OperatorView tab mode while building, which sends real machine
+context, and then on the tablet.
 
 Do not report a tab as registered and working until it has been opened on a
 tablet and shown real data for the right machine. Registration succeeding is not the same as
@@ -344,6 +400,11 @@ Schema changes are constrained after publish: Carbide Data is append only. Addin
 an attribute later works; renaming, retyping, or removing a published one does not, and has to
 be planned as a versioned change to the deployment rather than an edit in place.
 
+## Next
+
+Update the surface's status in `SPEC.md` to `deployed`, and say which URL serves it.
+
 **Every later change re-enters through `start`,** including a one-word fix. It classifies the
 change, routes it to `implement` or back to `spec`, and keeps `SPEC.md` describing what is
-actually deployed.
+actually deployed. A change made straight in `implement` skips the classification, which is how
+a spec stops describing the thing that is running.

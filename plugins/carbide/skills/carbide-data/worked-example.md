@@ -1,5 +1,9 @@
 # Worked example: changeover logging
 
+Read this before designing a first schema. It carries one domain end to end, from what the
+shop says to a published schema and the queries over it, including the changes that are
+possible afterwards and the ones that are not.
+
 A shop wants to record how long tool changeovers actually take, so a planner can see which
 operations are worst. MachineMetrics knows when a machine stopped. It does not know that the
 stop was a changeover, or who did it. That is data the deployment collects itself, so it

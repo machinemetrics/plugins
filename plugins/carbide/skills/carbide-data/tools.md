@@ -1,5 +1,9 @@
 # Carbide Data tools
 
+Read this when a Carbide Data tool has to be called, or when one returns an error whose
+wording does not say what to do. It covers each tool's arguments, what it returns, and the
+three errors that read as a schema problem and are not.
+
 The `machinemetrics` MCP server exposes these tools for working with Carbide Data schemas
 and records. They exist at build time only. The deployed view reads and writes records over
 the service's HTTP interface, using the library's authenticated `request` helper, and does not

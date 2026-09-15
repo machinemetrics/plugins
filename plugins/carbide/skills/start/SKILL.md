@@ -15,29 +15,22 @@ every later change re-enters here, which is what keeps `SPEC.md` honest.
 
 ## Working with the developer
 
-You are working with a developer who is building on MachineMetrics. Treat them as a
-colleague: they may know their shop floor better than they know React, OAuth, or the command
-line, and either way they are the one deciding what gets built.
+They decide what gets built, and they may know their shop floor better than they know React or
+OAuth. That changes what you explain, never how much you assume.
 
-- **Say what it means for what they are building first, then the detail.** One plain
-  sentence of consequence, then the technical part. Never the other way round.
-- **Name the phase you are in.** The skills are the phases: prepare the machine, decide
-  what to build, build it, put it live. Saying "that settles the spec, so we can start
-  building" tells them where they are and what comes next. What stays out of the
-  conversation is the machinery inside a phase: gates, rules, routing, section numbers.
-  Give the reason for a step, never a citation.
-- **Technical detail is welcome when it helps or they ask for it.** Explain a term the
-  first time it earns its place, in half a sentence. Skip the ones that change nothing for
-  them.
+- **Consequence first, then the detail.** One plain sentence about what it means for what they
+  are building, then the technical part.
+- **Name the phase, not the machinery.** "That settles the spec, so we can start building"
+  tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
+  step, never a citation.
 - **Narrate less, report more.** Group the work, then say what came of it.
 
-**They are a peer with a different access surface, not a lesser one.** They build against
-their own MachineMetrics organisation, on production or GovCloud, with no internal
-environment to fall back on and no way to undo a platform mutation from the CLI. That
-changes which options exist, never how much is explained or how much is assumed.
+**They are a peer with a different access surface.** They build against their own MachineMetrics
+organisation, on production or GovCloud, with no internal environment to fall back on and no way
+to undo a platform mutation from the CLI. That changes which options exist.
 
-Friendly does not mean vague. Keep every number, check, and caveat exactly as precise as it
-is now: that precision is what catches errors before they reach the shop floor.
+Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
+that precision is what catches errors before they reach the shop floor.
 ## 1. Detect, do not ask
 
 Read the project state before asking the person anything. They often do not know, and the
@@ -74,7 +67,8 @@ the find returns more than one, do not guess: name them and ask which is the dep
 | Signal | Means |
 | :--- | :--- |
 | No `SPEC.md` | Nothing is specified yet |
-| `SPEC.md` with an empty cell, or no surfaces table | The spec is not finished |
+| `SPEC.md` with no surfaces table, saying the platform already does this | **Finished, and the answer was to build nothing.** Not a gap. There is nothing to implement and nothing to route: say what it concluded and stop |
+| `SPEC.md` with an empty cell, or a surfaces table with a missing column | The spec is not finished |
 | No `storage:` line, or it reads anything but `yes`, `no` or `blocked` | The spec is not finished. `storage-fit` never returned a verdict |
 | `storage: blocked` | The model does not fit Carbide Data. Back to `spec`: this is not buildable as specified |
 | A cell reading `pending` | Not a gap. `implement` fills those two when it scaffolds |
@@ -87,6 +81,87 @@ the find returns more than one, do not guess: name them and ask which is the dep
 
 Say what you found. Do not report a state you did not read off disk.
 
+### If nothing was found, confirm where the project should live
+
+The two lookups above end in one of two states, and only one of them raises a question.
+
+**Something was found.** The directory holding `SPEC.md` is the project root, and the directory
+holding `public/default.json` is the app. Those files answer the question; asking anyway
+contradicts this section's own heading. Name both directories and go to section 2.
+
+**Neither was found.** The session is about to create a project, and the directory it is
+standing in is a guess: it is wherever the person happened to start Claude Code, which is
+often not where they keep their code. Nothing has been written yet, so this is the last cheap
+moment to get it right. Ask, once.
+
+**Ask in the first reply, whatever else that reply carries.** A request usually arrives with the
+app attached to it, and the design question pulls harder than the directory does. An answer that
+weighs surfaces, tabs or a prototype and never names the directory has skipped this gate rather
+than deferred it, because everything written from here on, `SPEC.md` first, lands in whichever
+directory is current at the moment it is written. The question costs one sentence. Answer the
+design question in the same reply when there is something worth saying, and do not trade the
+directory for it.
+
+Report the absolute path of the working directory exactly as the operating system gives it.
+`/home/dana/code` and `C:\Users\dana\code` are both normal, and neither form is the canonical
+one. Never write a `~` in the question or in a command: some shells the session drives do not
+expand it, and a literal `~` directory is a real and confusing failure mode. Then say what will
+be created where, in the person's own terms:
+
+- `SPEC.md` at the root of this directory
+- the scaffold at `<this directory>/<project-name>/app/`, because `mmdev create <name>` makes
+  its own subdirectory and puts the app one level below that
+
+Two conditions are worth naming in the same message, because both are cheap to notice and
+expensive to discover later. Neither blocks anything; they inform the answer:
+
+| Condition | How to check | Why it matters |
+| :--- | :--- | :--- |
+| The path is the person's home directory | Compare the reported path to the home directory | A project scaffolded loose in a home directory is easy to lose and awkward to put under version control later |
+| The directory is inside a git repository for something else | `git rev-parse --show-toplevel` | The Carbide project would be nested inside that repository and picked up by its tooling. The same command works on every platform |
+
+Also mention, when the person proposes a directory of their own, that `mmdev` runs the
+deployment through Docker Compose, so the path has to be one Docker can bind-mount. On Windows
+that means a location Docker Desktop shares; on macOS, a path inside Docker Desktop's
+file-sharing list. Do not try to detect this. Say it, and let them choose.
+
+If they name a different directory, make it the working directory before going on, creating it
+first if it does not exist. What matters is that the working directory is the one they chose,
+not how it got there: `mkdir -p` is not available everywhere, so create the directory by
+whatever means the platform provides. Then say which directory is now the project root.
+Everything that follows (`spec`, `implement`, `deploy`) reads the working directory, so this
+is the only place the answer needs to be recorded.
+
+If they confirm the current directory, say so in half a sentence and move on.
+
+### Look for an earlier attempt at the same thing
+
+An application that reaches a second attempt has usually left evidence of the first, and that
+evidence is worth more than it looks: a previous build's notes record the things that are only
+learned by hitting them. Check for it before any building starts, whether or not a project was
+found above.
+
+```bash
+ls -d *-bak *.bak *-old *-attempt* 2>/dev/null
+mmdev oauth list
+```
+
+Four places hold it:
+
+| Where | What it tells you |
+| :--- | :--- |
+| A backup or abandoned copy of the project beside the current one | The most valuable of the four. Read its `SPEC.md`, its `AGENTS.md`, and the comments in whatever it built: a note explaining why something is done an odd way is usually a trap someone already paid for |
+| `mmdev oauth list` | A client named after this application means an earlier attempt got as far as registering one. Clients cannot be deleted, so reuse the existing one rather than adding a near-duplicate |
+| `listCarbideSchemas` | A schema for this domain is already published and cannot be unpublished. Read it before designing another: either it is the table to build on, or the new design has to use a different `schemaKey` |
+| The hosting account | A site already serving this application means a registered OAuth redirect points at that exact hostname, which constrains the name the next deployment can take |
+
+**Read what you find before deciding what to do with it.** A previous attempt's conclusions are
+evidence about the platform, not a verdict on the design: adopt the findings, and take the
+design decisions again. Say which of the four you found, and what each one changes.
+
+**Do not reuse an earlier attempt's code by copying it.** Copying carries its configuration and
+its OAuth client into a project that should start clean. Read it, then build.
+
 ## 2. Check the machine, once
 
 `setup` is machine scoped, not project scoped. It runs once per machine and again when
@@ -97,14 +172,14 @@ Three things are worth confirming here, because all three fail silently:
 **Is `mmdev` present?**
 
 ```bash
-MMDEV_NO_UPDATE=1 mmdev --version
+mmdev --version
 ```
 
 **These skills assume `mmdev` 1.0.0.** Anything older, and anything that hangs or prints
 nothing, is a machine that is not ready: hand off to `setup`, which owns the version check and
-the upgrade. The environment variable is not optional here, because an old release stops on an
-interactive update prompt on every invocation including `--version`, so the bare command hangs
-on exactly the machines this check exists to catch.
+the upgrade. At 1.0.0 and newer this prints and exits: the update notice is one line on stderr
+that never blocks, and it is suppressed for `--version` and for any caller whose streams are
+not a terminal, which covers every command a session like this one runs.
 
 If a project already exists, check its libraries too, in the project's `app/` directory:
 
@@ -113,12 +188,21 @@ npm ls @machinemetrics/mm-react-tools @machinemetrics/mm-react-components
 ```
 
 Either package below the version `setup` requires routes there as well, `mm-react-tools` below
-5.1.0 or `mm-react-components` below 1.6.1. Use the scoped names: the unscoped ones report
+5.2.0 or `mm-react-components` below 1.6.1. Use the scoped names: the unscoped ones report
 nothing rather than failing, which reads as "not installed" on a project that has them.
 
 **Does the gateway actually answer?** Probe it: call any cheap gateway tool, for example a
 `knowledgeBase` query with any string. Say out loud that you are probing, so the call does not
 read as a random detour.
+
+**Then check that the Carbide Data tools are there too, whatever the spec turns out to need.**
+A gateway that answers a `knowledgeBase` or GraphQL call proves the connection, not the grant:
+the Carbide Data tools ride a separate scope and can be absent from a session whose other tools
+work perfectly. `listCarbideSchemas` is the cheap check, and its answer is also useful later.
+
+Do this now rather than when storage design starts. Widening a grant is interactive, takes a
+browser, and may need the session's tool registry rebound, so it is a different thing to hit in
+the first two minutes than an hour into a spec that is nearly closed.
 
 Report which of four states you are in, not just pass or fail. The two middle ones look like a
 broken plugin and are not:
@@ -138,7 +222,7 @@ evidence; the response is.
 **Which environment is `mmdev` pointed at?**
 
 ```bash
-MMDEV_NO_UPDATE=1 mmdev environment list
+mmdev environment list
 ```
 
 Report the active environment by name every time, alongside the two checks above. This is
@@ -158,15 +242,32 @@ environment is always theirs. MachineMetrics staff rehearsing the workflow on `s
 to switch and do not need to be offered the choice, and offering it here proposes an
 environment they cannot deploy to.
 
-If any check fails, hand off to `setup`. **If `setup` installs or authorizes a gateway, the
-session has to restart** before its tools exist, so expect to be re-entered here rather than
-continuing in that session.
+If any check fails, hand off to `setup`. **A gateway authorized mid-session does not bring its
+tools with it**: the registry was bound when the session started. `setup` has the cycle that
+rebinds it without a restart, and says when a restart is the only thing left. Either way, come
+back here once the tools are actually present rather than assuming they arrived.
 
-**The gateway is also the documentation.** `knowledgeBase` serves the MachineMetrics developer
-and support documentation, so hook signatures, API shapes, platform settings and product
-behaviour are all lookups rather than recall. Prefer it over what you remember, in every
-skill. If the gateway is unavailable, the same content is at
-https://developers.machinemetrics.com and https://docs.machinemetrics.com.
+**The gateway is also the documentation.** `knowledgeBase` serves both documentation sites, so
+hook signatures, API shapes, platform settings and product behaviour are all lookups rather than
+recall. Prefer it over what you remember, in every skill. If the gateway is unavailable, the same
+content is at https://developers.machinemetrics.com and https://docs.machinemetrics.com.
+
+**Narrow the search with `category` and `section`.** They mirror the path of the page they came
+from, so a result from
+`developers.machinemetrics.com/docs/build-apps/mm-react-tools/hooks/useMMAppContext` carries
+`category: "build-apps"` and `section: "mm-react-tools"`. Passing them back filters the next
+search to that corner of the docs.
+
+| Looking for | Try |
+| :--- | :--- |
+| A hook, an API shape, anything about building | `category: "build-apps"`, and `section: "mm-react-tools"` for the library |
+| How the product behaves for the people using it | `category: "product-guides"` or `"getting-started"`, on the user docs, which carry no section |
+| The GraphQL schema | `category: "schema"` |
+| Something the shop wrote themselves | `category: "document"`, which is their own uploads rather than ours |
+
+Every result carries its `source_url`, so quote the page rather than paraphrasing it, and say
+which one answered. Widen by dropping the filters before concluding a thing is undocumented: an
+empty result under a wrong `section` looks identical to a gap in the docs.
 
 **Say which environment the gateway is on, not just that it answered.** Nothing prints it,
 and it is assumed to match the active `mmdev` environment without anyone checking. When the
@@ -186,10 +287,18 @@ Do not improvise a third option.
 
 First match wins. Name the skill, say why, and invoke it. Do not list the others.
 
+**When the route is `spec`, say the cheapest thing first.** Requests shaped like "let the
+operator record X at the machine, then show me where X happens" are often a MachineMetrics
+feature already, scrap and downtime reasons most of all. Nothing in the table below catches
+that, because it is a question about the request rather than about the project's state. So when
+you hand off to `spec`, name it as the first thing `spec` will check, and do not start designing
+a surface on the way there.
+
 | State | Next |
 | :--- | :--- |
 | Machine not ready | `setup` |
 | `mmdev`, or an existing project's libraries, behind the versions these skills assume | `setup`, to upgrade first. Building against an old toolchain produces a deployment that has to be repaired later |
+| `SPEC.md` concluded that nothing should be built | Nothing. Say what it concluded and what is left for them to configure. A request to build one anyway is a new request, and re-enters here |
 | No `SPEC.md`, or the spec is not finished | `spec` |
 | `SPEC.md` says `storage: yes` and the Carbide Data tools are absent | `carbide-data`, to diagnose the grant before any surface work |
 | Any surface at `blocked` | `spec`, for that surface. Check whether the blocker has cleared before anything else |
@@ -257,8 +366,11 @@ Use these words precisely. They are not interchangeable, and the product UI uses
 
 Avoid the bare word "app" for what is being built. Say `deployment` or `surface`.
 
-The developer builds against their own MachineMetrics account, which is what decides the
-environment and the partition. That is an access boundary, not a skill one: they have no
-internal environment to fall back on and cannot undo a platform mutation from the CLI, so some
-options that exist inside MachineMetrics do not exist here. It says nothing about what they
-know.
+## Next
+
+**Invoke the one skill the routing table named, and nothing else.** Do not begin the work here:
+this skill decides where a project is, and the skill it names decides what happens to it.
+
+Come back here after each phase. That is what keeps `SPEC.md` describing the thing that is
+running, and it is why a one-word change re-enters here rather than going straight to
+`implement`.

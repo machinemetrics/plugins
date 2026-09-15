@@ -1,5 +1,9 @@
 # mmdev CLI reference
 
+Read this when a command's exact form matters, or when one fails in a way that does not say
+why. It covers every command these skills use, what each writes, and the failures worth
+recognising.
+
 The command line tool for MachineMetrics development. Prefer it over hand-rolled setup: it
 produces the project shape the platform expects.
 
@@ -19,12 +23,12 @@ produces the project shape the platform expects.
 | `mmdev login` | Authenticates with the MachineMetrics API |
 | `mmdev logout` | Clears the stored access token |
 | `mmdev update` | Upgrades an existing install in place |
-| `mmdev create <name> -t <template>` | Creates a project from a template. **Use a kebab-case name** |
+| `mmdev create <name> -t <template>` | Creates a project from a template. **Use a kebab-case name.** `-o --out-path <path>` overrides where it lands, which otherwise defaults to `<name>` under the working directory |
 | `mmdev oauth dev-init` | Creates a development OAuth client |
-| `mmdev oauth dev-apply` | Applies that client to the project |
+| `mmdev oauth dev-apply` | Applies that client to the project, run from the project root |
 | `mmdev configure` | Switches between sets of configuration files and secrets |
 | `mmdev environment list` | Lists environments and marks the active one |
-| `mmdev environment switch` | Switches the active environment |
+| `mmdev environment switch <name>` | Switches the active environment. The name is a required argument |
 | `mmdev playground` | Launches the embedded app playground |
 
 Run `mmdev <command> --help` for current options rather than guessing at flags. The CLI is
@@ -54,7 +58,7 @@ copying another project.
 | Command | Scope |
 | :--- | :--- |
 | `mmdev oauth dev-init` | **Per environment.** Writes a `LOCAL TEST` client under `~/.mmrc`, which is a directory holding one per environment. Reuses the existing one for that environment |
-| `mmdev oauth dev-apply` | Copies that client into the current project's `public/default.json` |
+| `mmdev oauth dev-apply` | Copies that client into `app/public/default.json`. **Run it from the project root**, the directory holding `app/`: the path is resolved relative to the working directory, so anywhere else it reports `app/public/default.json` as missing |
 | `mmdev oauth dev-reset` | Clears the local client from `~/.mmrc` |
 | `mmdev oauth add -n <name> -r <redirect>` | Creates a **new named client** and prints its id. It prints a secret too; a PKCE deployment does not use it |
 | `mmdev oauth list` | Lists clients |
@@ -139,8 +143,9 @@ Three things to know:
 - **It is a host page, not a runner.** Run `npm start` for the deployment as well, then in the
   playground pick the embed type and paste the deployment URL into the modal. Two processes
   running is not the same as the two being connected.
-- **It takes the first free port from 4000 upward and prints the URL.** Do not assume 4000.
-  Open the URL it printed.
+- **It takes the first free port in the range 4000-4010 and prints the URL.** Do not assume
+  4000. Open the URL it printed. If all eleven are taken it prints `No available ports found
+  between 4000 and 4010` and starts nothing rather than trying a higher port.
 - **Check for an existing playground first.** One from an earlier session, on another port,
   is a common way to verify the wrong process.
 
@@ -151,8 +156,8 @@ double, so they prove layout and nothing about embedding.
 
 | Symptom | Cause |
 | :--- | :--- |
-| `docker compose up` fails, `repository name must be lowercase` | A non-kebab-case project name became the compose service key (mmdev-cli#101) |
-| Hangs with no output | An old release's update prompt. `MMDEV_NO_UPDATE=1`, then `mmdev update` |
+| `docker compose up` fails, `repository name must be lowercase` | A non-kebab-case project name became the compose service key |
+| Hangs with no output | An install behind 1.0.0, stopping on the old interactive update prompt. `mmdev update`. From 1.0.0 the notice is one stderr line that never blocks |
 | `Template not found` | Template not in the installed CLI |
 | Auth fails after a clean build | Environment invariant broken |
 | Playground shows stale behaviour | An older playground on another port |
