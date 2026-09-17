@@ -242,7 +242,7 @@ Requires the `custom-data:schema` scope.
 | :--- | :--- |
 | `namespace`, `schemaKey` | The schema to create, or the existing one to version. |
 | `jsonSchema` | The schema to publish. Safe to pass one read back from `getCarbideSchema`: the service-owned keywords are removed before sending. |
-| `description` | Optional. Used only when creating. A description change alone is not a version. |
+| `description` | Optional. Used only when creating, and 500 characters at most: the service refuses a longer one at publish, after the schema itself has validated. A description change alone is not a version. |
 | `confirm` | Must be `true`. A published shape cannot be reshaped. |
 
 **Output**

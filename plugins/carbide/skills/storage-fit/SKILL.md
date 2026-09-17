@@ -22,19 +22,41 @@ OAuth. That changes what you explain, never how much you assume.
 - **Name the phase, not the machinery.** "That settles the spec, so we can start building"
   tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
   step, never a citation.
-- **Narrate less, report more.** Group the work, then say what came of it.
+
+**Report what needs action, not what you did.** A developer who would have been happy with
+"all good, let's start" should get roughly that. What earns a line:
+
+- A check that failed, or that changed something. Everything that passed is one sentence:
+  "prerequisites, DNS and ports all check out." A table of green rows is the report working for
+  you rather than for them.
+- One question at a time. Where two are open, ask the one blocking the next step and hold the
+  other until it matters.
+- Name the call, do not justify it. "Checking the gateway" orients them in three words.
+  "Probing the gateway with a cheap docs query, so this call is a check and not a detour" is the
+  skill's own reasoning read aloud, and they cannot see the skill that would make it land.
+
+Length is the symptom worth watching. A handoff that runs past a screen is usually reporting
+the work rather than the result.
 
 **They are a peer with a different access surface.** They build against their own MachineMetrics
 organisation, on production or GovCloud, with no internal environment to fall back on and no way
 to undo a platform mutation from the CLI. That changes which options exist.
 
 Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
-that precision is what catches errors before they reach the shop floor.
+that precision is what catches errors before they reach the shop floor. It governs the
+numbers you do give, not how many of them you give.
 ## 1. Does it need storage at all?
 
 Many deployments only read MachineMetrics production data and record nothing of their own. If
 nothing is recorded by the deployment itself, say so, write `storage: no` in `SPEC.md`, and
 stop. Do not create tables and do not go further down this page.
+
+**If setup already established that this account cannot hold the `custom-data:schema` scope,
+that settles it before the model does.** Nothing that stores its own records is buildable from
+the account, however well the model would have fitted, so write `storage: blocked` with that as
+the reason and return to `spec`. Do not re-run the grant check to confirm: setup ran it once and
+a second attempt reaches the same wall more slowly. The rest of this page is about whether a
+model fits, which is a different question and not the one in the way.
 
 **Reading is not evidence either way, and where it reads from is a separate question.** The
 MCP tools are how *this session* reaches the platform while designing. A *shipped* deployment

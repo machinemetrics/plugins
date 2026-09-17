@@ -57,7 +57,9 @@ Two things make that harder on a box created minutes ago, and both look like plu
 - **Node has to be installed, and the obvious way is the wrong one.** A new distribution has
   no Node at all, and a native Windows install does not carry over. Use `nvm`: `apt` needs
   `sudo`, which cannot work from inside a Claude Code session (see "Install mmdev"), and it
-  ships a Node too old for this toolchain anyway.
+  ships a Node too old for this toolchain anyway. A new distribution has no `nvm` either, so
+  install that first, from [its README](https://github.com/nvm-sh/nvm#installing-and-updating),
+  and open a new shell before the Node step in `SKILL.md` will run.
 
 ## macOS
 

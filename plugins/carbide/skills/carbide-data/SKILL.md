@@ -20,14 +20,29 @@ OAuth. That changes what you explain, never how much you assume.
 - **Name the phase, not the machinery.** "That settles the spec, so we can start building"
   tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
   step, never a citation.
-- **Narrate less, report more.** Group the work, then say what came of it.
+
+**Report what needs action, not what you did.** A developer who would have been happy with
+"all good, let's start" should get roughly that. What earns a line:
+
+- A check that failed, or that changed something. Everything that passed is one sentence:
+  "prerequisites, DNS and ports all check out." A table of green rows is the report working for
+  you rather than for them.
+- One question at a time. Where two are open, ask the one blocking the next step and hold the
+  other until it matters.
+- Name the call, do not justify it. "Checking the gateway" orients them in three words.
+  "Probing the gateway with a cheap docs query, so this call is a check and not a detour" is the
+  skill's own reasoning read aloud, and they cannot see the skill that would make it land.
+
+Length is the symptom worth watching. A handoff that runs past a screen is usually reporting
+the work rather than the result.
 
 **They are a peer with a different access surface.** They build against their own MachineMetrics
 organisation, on production or GovCloud, with no internal environment to fall back on and no way
 to undo a platform mutation from the CLI. That changes which options exist.
 
 Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
-that precision is what catches errors before they reach the shop floor.
+that precision is what catches errors before they reach the shop floor. It governs the
+numbers you do give, not how many of them you give.
 ## This skill is the lifecycle, not the fit check
 
 `storage-fit` runs during the spec and answers two cheap questions: does this deployment need
@@ -315,9 +330,14 @@ Passing the credential as a value is the same mistake wearing a different hat. A
 takes `token: string` freezes whatever was current when the caller read it. One that takes
 `getToken: () => string | null` cannot.
 
-**`isAuthenticated` is the gate, and it is enough.** It turns true once a usable credential is
-held, not when the sign-in is known, so a call made after it can carry one. A surface that shows
-a spinner until then is showing the truth rather than being cautious.
+**`isAuthenticated` is the gate for the `'api'` credential, and for that one it is enough.** It
+turns true once a usable API credential is held, not when the sign-in is known, so a Carbide
+Data call made after it can carry one. It says nothing about the other purposes: `'graphql'`
+lands on its own schedule after the API credential, so a Hasura read gated on `isAuthenticated`
+alone can still find `getCredential('graphql')` null, and one that reads it once and reports it
+missing stays wrong after it arrives. Watch a non-`'api'` purpose with `useCredential(purpose)`
+and let the effect re-run when the value changes. A surface that shows a spinner until then is
+showing the truth rather than being cautious.
 
 Keep the request function's identity independent of the credential, so a mount-time fetch does
 not fire again on every rotation. The library's own links are built that way: they wait up to
@@ -379,6 +399,12 @@ is no `OR` across fields, no join, and no aggregate other than the optional exac
 What the interface cannot express, the deployment computes in its own code from the rows it
 fetches. Pass the `query` string to `executeCarbideQuery`, which resolves the schema and
 returns the records.
+
+**If a query string is ever written by hand, equality takes no operator suffix.**
+`machineRef=14883` is equality. `machineRef[eq]=14883` is a 400, because `eq` is not a suffix
+the service parses: the suffixes are `[gt]`, `[gte]`, `[lt]`, `[lte]`, `[in]`, `[exists]` and
+`[null]`, and nothing else. The generator gets this right, which is one more reason to let it
+build the string.
 
 Paging: `limit` defaults to 20 and is clamped to 100; the tool states the clamp rather than
 letting anyone believe they got more rows. `offset` starts at 0. Without `sort`, results

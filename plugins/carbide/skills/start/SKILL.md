@@ -23,14 +23,29 @@ OAuth. That changes what you explain, never how much you assume.
 - **Name the phase, not the machinery.** "That settles the spec, so we can start building"
   tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
   step, never a citation.
-- **Narrate less, report more.** Group the work, then say what came of it.
+
+**Report what needs action, not what you did.** A developer who would have been happy with
+"all good, let's start" should get roughly that. What earns a line:
+
+- A check that failed, or that changed something. Everything that passed is one sentence:
+  "prerequisites, DNS and ports all check out." A table of green rows is the report working for
+  you rather than for them.
+- One question at a time. Where two are open, ask the one blocking the next step and hold the
+  other until it matters.
+- Name the call, do not justify it. "Checking the gateway" orients them in three words.
+  "Probing the gateway with a cheap docs query, so this call is a check and not a detour" is the
+  skill's own reasoning read aloud, and they cannot see the skill that would make it land.
+
+Length is the symptom worth watching. A handoff that runs past a screen is usually reporting
+the work rather than the result.
 
 **They are a peer with a different access surface.** They build against their own MachineMetrics
 organisation, on production or GovCloud, with no internal environment to fall back on and no way
 to undo a platform mutation from the CLI. That changes which options exist.
 
 Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
-that precision is what catches errors before they reach the shop floor.
+that precision is what catches errors before they reach the shop floor. It governs the
+numbers you do give, not how many of them you give.
 ## 1. Detect, do not ask
 
 Read the project state before asking the person anything. They often do not know, and the
@@ -102,6 +117,16 @@ directory is current at the moment it is written. The question costs one sentenc
 design question in the same reply when there is something worth saying, and do not trade the
 directory for it.
 
+**Ask what they want to build in that same reply, and put it above the machine report.** They
+arrived with an application in mind, and it is the one question only they can answer, so it is
+what the reply should open on. A developer who has to read a status page before anyone asks
+about their shop floor meets a tool that is interested in itself.
+
+What you found on disk still gets said, because the next step depends on it, but it is a line
+rather than the headline: "nothing here yet" or "found your spec in `/path`, and the app under
+it". The same holds when a project was found and the directory question does not arise. Open
+on what they want to change, put the state and the machine underneath it.
+
 Report the absolute path of the working directory exactly as the operating system gives it.
 `/home/dana/code` and `C:\Users\dana\code` are both normal, and neither form is the canonical
 one. Never write a `~` in the question or in a command: some shells the session drives do not
@@ -167,6 +192,23 @@ its OAuth client into a project that should start clean. Read it, then build.
 `setup` is machine scoped, not project scoped. It runs once per machine and again when
 something breaks underneath, so do not re-run it for every project.
 
+**When you route there, name what is short.** "Node is 18, the reference is 24" sends `setup`
+to the one step that fixes it. Handing over "the machine is not ready" sends it through every
+check again, which costs minutes and repeats a report the developer has already read. That is
+what makes a second visit feel like a loop rather than a fix.
+
+**Run these before you reply, and report only what they have to act on.** The turn ends when
+you ask the question, so the checks cannot run alongside the answer: they run first, and
+everything they found arrives in the same reply that asks. That is the point. One reply that
+opens with the question and closes with a sentence about the machine is short. Two replies, a
+status page and then a question, is what made the first one long.
+
+What comes back is almost always that everything is fine. Say that in a sentence, and give a
+line only to a check that blocks, or that you changed on their behalf. "Your CLI was on
+staging, which cannot reach your data, so I switched it to production. Everything else checks
+out." is the whole report. The nine-row table that names every passing check is the report
+serving the checker.
+
 Three things are worth confirming here, because all three fail silently:
 
 **Is `mmdev` present?**
@@ -175,7 +217,7 @@ Three things are worth confirming here, because all three fail silently:
 mmdev --version
 ```
 
-**These skills assume `mmdev` 1.0.0.** Anything older, and anything that hangs or prints
+**These skills assume `mmdev` 1.0.3.** Anything older, and anything that hangs or prints
 nothing, is a machine that is not ready: hand off to `setup`, which owns the version check and
 the upgrade. At 1.0.0 and newer this prints and exits: the update notice is one line on stderr
 that never blocks, and it is suppressed for `--version` and for any caller whose streams are
@@ -192,8 +234,8 @@ Either package below the version `setup` requires routes there as well, `mm-reac
 nothing rather than failing, which reads as "not installed" on a project that has them.
 
 **Does the gateway actually answer?** Probe it: call any cheap gateway tool, for example a
-`knowledgeBase` query with any string. Say out loud that you are probing, so the call does not
-read as a random detour.
+`knowledgeBase` query with any string. Name the call as you make it, so it does not read as a
+random detour. Naming it is enough; the reason it is worth making is for you, not for them.
 
 **Then check that the Carbide Data tools are there too, whatever the spec turns out to need.**
 A gateway that answers a `knowledgeBase` or GraphQL call proves the connection, not the grant:
@@ -211,7 +253,7 @@ broken plugin and are not:
 | :--- | :--- | :--- |
 | Absent | No MachineMetrics tools in the session | `setup`, to install it |
 | Present, not authorized | Tools exist, the call fails, or `claude mcp list` says `Needs authentication` | `setup`, to authenticate. Nothing is wrong with the plugin |
-| Present, authorized, incomplete | The call returns real content, but the Carbide Data tools are absent | Only matters once `SPEC.md` says `storage: yes`. Then `carbide-data` to diagnose the grant, and `setup` for the remedy. Otherwise note it and carry on |
+| Present, authorized, incomplete | The call returns real content, but the Carbide Data tools are absent | `setup`, to widen the grant now rather than when a spec first needs it. The fix needs an interactive authorization and sometimes a session restart, which is cheap here and expensive mid-build |
 | Present and authorized | The call returns real content and the Carbide Data tools are listed | Continue |
 
 The middle state is invisible in `/plugin`, because the plugin-level connection and the
@@ -310,9 +352,10 @@ a surface on the way there.
 
 The Carbide Data row sits above the surface rows deliberately. It is the one machine-state
 problem that does not stop the session outright, so it would otherwise lose to the first
-surface row and the diagnosis promised above would never run. It is gated on `storage: yes`
-because a read-only deployment never needs those tools, and sending one to `carbide-data`
-only earns a bounce back.
+surface row and never run. `setup` now settles the grant before any of this, so reaching this
+row means a machine set up before that, or a grant that has lapsed since. It stays gated on
+`storage: yes`: a read-only deployment never needs those tools, and sending one to
+`carbide-data` only earns a bounce back.
 
 Statuses are read **per surface**, not for the deployment as a whole. A live deployment
 gaining a second surface has one row at `deployed` and one at `specified` or `built` at the

@@ -15,11 +15,13 @@ GovCloud. Check the name, not only the consistency.
 | The active `mmdev` environment | `mmdev environment list` |
 | The OAuth client's environment | Whichever client `public/default.json` names. See the repair table below |
 | The deployment's config | `public/default.json`: `releaseStage`, and `urls` only if something set it |
-| **The gateway's environment** | Not printed anywhere. Establish it by asking, see `setup` |
+| **The gateway's environment** | Not printed anywhere. Run `{ companies { name } }` and see whose data comes back; see `setup` |
 
 **There are four legs, not three.** The gateway's is the one nobody prints and everybody
 assumes, and a mismatch there sends every symptom towards the code instead. `setup` covers
-how to establish it.
+how to establish it. Do not try to settle it with machine or shift ids: in some tenants those
+are **identical** across staging and production, so matching ids prove nothing. A company name
+differs, which is why the query above is the one that answers it.
 
 If they disagree, the correct one is the account's own environment: `production`, or
 `govcloud` on GovCloud. Make the others match it. Do not ask which to target, because there is

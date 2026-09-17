@@ -24,6 +24,15 @@ ships no `Item` demo and its index route renders Home. There is no `REGISTRATION
 template: read the scaffold's own `README.md` and `AGENTS.md`, which every template does ship at
 its root, rather than sending anyone to a file by name that you have not seen on disk.
 
+**Check the library versions the scaffold actually installed.** A template declares a range
+and ships a lockfile, and the two can disagree with the floor `setup` requires: the range can
+admit the floor while the lock pins a release below it, so `package.json` looks satisfied and
+the installed tree is not. That has happened, and it presented as a build that did not match
+this guidance. `npm ls @machinemetrics/mm-react-tools` in `app/` after `mmdev create` is the
+only thing that says what is there. If it is below the floor in `setup`'s prerequisite table,
+install the library at that floor so the lock moves; do not proceed on the assumption that the
+template did.
+
 **No template ships `app/public/mm-app-manifest.json`, and it is not the way to get machine
 context. Do not add one.** An app tab carries the registered view's `appId`;
 OperatorView resolves it and marks the tab `isEmbed: true`, and an `isEmbed` tab goes straight to

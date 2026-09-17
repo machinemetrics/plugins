@@ -23,14 +23,29 @@ OAuth. That changes what you explain, never how much you assume.
 - **Name the phase, not the machinery.** "That settles the spec, so we can start building"
   tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
   step, never a citation.
-- **Narrate less, report more.** Group the work, then say what came of it.
+
+**Report what needs action, not what you did.** A developer who would have been happy with
+"all good, let's start" should get roughly that. What earns a line:
+
+- A check that failed, or that changed something. Everything that passed is one sentence:
+  "prerequisites, DNS and ports all check out." A table of green rows is the report working for
+  you rather than for them.
+- One question at a time. Where two are open, ask the one blocking the next step and hold the
+  other until it matters.
+- Name the call, do not justify it. "Checking the gateway" orients them in three words.
+  "Probing the gateway with a cheap docs query, so this call is a check and not a detour" is the
+  skill's own reasoning read aloud, and they cannot see the skill that would make it land.
+
+Length is the symptom worth watching. A handoff that runs past a screen is usually reporting
+the work rather than the result.
 
 **They are a peer with a different access surface.** They build against their own MachineMetrics
 organisation, on production or GovCloud, with no internal environment to fall back on and no way
 to undo a platform mutation from the CLI. That changes which options exist.
 
 Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
-that precision is what catches errors before they reach the shop floor.
+that precision is what catches errors before they reach the shop floor. It governs the
+numbers you do give, not how many of them you give.
 ## Before starting
 
 `SPEC.md` must exist with all of the following. It lives at the **project root**, which is
@@ -275,6 +290,28 @@ Three properties, all checkable:
 - **Performant.** Fetch on the surface's terms. A widget refreshing every second inside an
   OperatorView is a different cost to a fullpage view a planner opens twice a day.
 
+### Credentials in code
+
+Every surface that reads anything passes through here, whether or not it stores, so these rules
+live here rather than only in `carbide-data`.
+
+- **Read the credential per use, never hold it.** In render that is `useCredential(purpose)`,
+  which re-renders when the value changes; in a callback it is `getCredential(purpose)` called
+  inside the call. A helper that takes `token: string` freezes whatever was current when the
+  caller read it; one that takes `getToken: () => string | null` cannot.
+- **`isAuthenticated` covers the `'api'` credential only.** The `'graphql'` credential lands
+  on its own schedule after it, so a Hasura read gated on `isAuthenticated` alone can find
+  `getCredential('graphql')` null. Watch it with `useCredential('graphql')` and let the effect
+  re-run when it arrives, rather than reading once and reporting it missing.
+- **Keep the request function's identity independent of the credential.** A `useMemo` or
+  `useCallback` keyed on the credential, or on `getCredential` and `request` themselves, which
+  the auth hook returns fresh on every render, rebuilds on every rotation and every render: a
+  mount-time fetch fires again, sets state, and loops. In Vitest that surfaces only as endless
+  `act(...)` warnings, nothing resembling a loop.
+
+`carbide-data` has the storage-specific half: which purpose the service takes, what a 401 means
+by method, and the request helper.
+
 ### Listing machines
 
 A surface that lets someone pick a machine, or shows more than its own, reads the list from
@@ -374,8 +411,12 @@ the playground is showing you an empty host and nothing about the deployment.
 **For a `tab`, the playground runs the real thing.** It is an authenticated
 MachineMetrics host: it signs in with PKCE, brokers the embedded credential, and has an
 OperatorView tab mode that sends real machine context, so the machine half of a tab's contract
-is verifiable locally. Pick tab mode, paste the deployment URL, and check that
-`useMMAppContext()` returns a machine rather than nothing.
+is verifiable locally. Pick tab mode, paste the deployment URL, **and pick a machine in the
+playground's own dropdown**: that dropdown is where the context comes from, and until the
+playground itself has signed in it reads "Waiting for credentials..." and offers nothing. With
+no machine selected, `useMMAppContext()` returns `machineId` and `machineRef` as `undefined`,
+so a correct surface shows its empty-context guard, which looks exactly like a broken app.
+Select the machine, then check that the hook returns it rather than nothing.
 
 It also serves `/default.json` for the active environment, and `MMDEV_PLAYGROUND_ENV` pins the
 dev server to one environment without changing which one is active. Use that rather than

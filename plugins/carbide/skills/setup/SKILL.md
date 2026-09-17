@@ -8,6 +8,20 @@ description: Prepare a machine for Carbide development and connect it to Machine
 This is machine scoped, not project scoped. It runs once per machine, and again when something
 breaks underneath. Do not re-run it for every deployment.
 
+**Coming back is normal, and a second pass is not a first pass.** A machine usually reaches this
+page twice: once at the start, and again after the one thing that was short gets fixed, or when
+`start` routes back because it still is not. Re-running every check costs minutes and tells the
+developer nothing they have not already read, which reads as the loop it looks like.
+
+So on re-entry, settle what is still open rather than starting at step 1. What was confirmed
+earlier in the session holds unless something has changed underneath it, and `start` names the
+shortfall that sent you back. Go to that step, fix it, confirm that one thing, and hand back.
+Say which check you re-ran and why, so a developer who watched the first pass can see this is
+not the same sweep again.
+
+A full sweep is right when the session did not run the first one, when the developer says the
+machine has changed, or when a failure appears that nothing here predicted.
+
 Work in order: each step assumes the one above it succeeded, and the common failures are all
 near the top.
 
@@ -24,14 +38,29 @@ OAuth. That changes what you explain, never how much you assume.
 - **Name the phase, not the machinery.** "That settles the spec, so we can start building"
   tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
   step, never a citation.
-- **Narrate less, report more.** Group the work, then say what came of it.
+
+**Report what needs action, not what you did.** A developer who would have been happy with
+"all good, let's start" should get roughly that. What earns a line:
+
+- A check that failed, or that changed something. Everything that passed is one sentence:
+  "prerequisites, DNS and ports all check out." A table of green rows is the report working for
+  you rather than for them.
+- One question at a time. Where two are open, ask the one blocking the next step and hold the
+  other until it matters.
+- Name the call, do not justify it. "Checking the gateway" orients them in three words.
+  "Probing the gateway with a cheap docs query, so this call is a check and not a detour" is the
+  skill's own reasoning read aloud, and they cannot see the skill that would make it land.
+
+Length is the symptom worth watching. A handoff that runs past a screen is usually reporting
+the work rather than the result.
 
 **They are a peer with a different access surface.** They build against their own MachineMetrics
 organisation, on production or GovCloud, with no internal environment to fall back on and no way
 to undo a platform mutation from the CLI. That changes which options exist.
 
 Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
-that precision is what catches errors before they reach the shop floor.
+that precision is what catches errors before they reach the shop floor. It governs the
+numbers you do give, not how many of them you give.
 
 ## 1. Establish the platform, and where Claude Code will run
 
@@ -53,6 +82,34 @@ one, and getting it wrong costs a rebuild rather than a retry.
 Node: the project template pins **Node 24** in its Dockerfile and declares no `engines`, so
 Node 24 is the reference version. An older major will usually install and then fail somewhere
 less obvious, so check it rather than assuming.
+
+**A short answer from `node --version` does not mean Node 24 is missing.** Where `nvm` manages
+Node, the right version is often already installed and simply not the default, and installing
+it again is a download that changes nothing. Look before fetching:
+
+```bash
+command -v nvm          # empty means nvm itself is missing
+nvm ls                  # is 24 already there?
+nvm install 24          # only if it is not
+nvm use 24              # this shell, right now
+nvm alias default 24    # and every shell after it
+```
+
+**Check the first line on a new WSL distribution, which has neither Node nor `nvm`.**
+[platforms.md](platforms.md) sends Windows here for Node, and every line below the first fails
+with `nvm: command not found` until `nvm` exists. Where it prints nothing, install `nvm` with
+the command in [its README](https://github.com/nvm-sh/nvm#installing-and-updating), then open a
+new shell. The installer appends to the shell profile and does not change the session that ran
+it, and `nvm` is a shell function rather than a binary, so `command -v nvm` stays empty until
+that reload.
+
+`nvm ls` decides whether the second line is needed: where 24 is already listed it is a download
+you can skip, and where it is not, `use` and `alias` both fail without it and the version is no
+nearer being installed.
+
+The last two lines are a pair. `nvm alias default` only sets what future shells start on, so on
+its own the session carries on running the old Node, the version gate fails again, and setup is
+sent back round the same loop it just came out of.
 
 Docker is genuinely optional for writing code, because `npm start` runs the app directly. It is
 required to produce the deployable artifact, so if they intend to ship during this session,
@@ -81,6 +138,27 @@ Do not treat a request to read the script first as an obstacle. It is the same i
 The `exec $SHELL -l` matters: the installer puts `mmdev` in `~/.mmdev` and edits `PATH`, and
 without reloading the shell the next command will not find it.
 
+### Verify the install
+
+```bash
+mmdev --version
+```
+
+Run it rather than trusting the installer's output. The three ways it fails are different
+problems, and only one of them is fixed by re-running the installer:
+
+- **Returns immediately, printing nothing.** An incomplete binary. Re-run the installer above
+  once. It resumes the download and refuses to activate a binary that does not run.
+- **`command not found`.** Usually the shell was not reloaded. Run `exec $SHELL -l` and try
+  again. If it is still missing, check the platform before anything else: there is no published
+  `mmdev` for Linux arm64 (`platforms.md`), and re-running cannot produce one. Re-run the
+  installer only after both of those.
+- **Hangs.** An old install stopping on the pre-1.0.0 interactive update prompt. Use
+  `mmdev update` from the version table.
+
+**Re-run it once, not repeatedly.** A second failure prints why: a checksum mismatch, a
+stalled transfer, an HTTP error. Act on that; repeating the command will not change it.
+
 ### Versions, and this is where they are settled
 
 **Everything in these skills assumes the versions below**, and this is where they are required
@@ -92,7 +170,7 @@ than adapting the build to an old toolchain.
 
 | | Required | Check | Upgrade |
 | :--- | :--- | :--- | :--- |
-| `mmdev` | 1.0.0 | `mmdev --version` | `mmdev update` |
+| `mmdev` | 1.0.3 | `mmdev --version` | `mmdev update`, then confirm with `mmdev --version`. If that leaves it broken, re-run the installer |
 | `@machinemetrics/mm-react-tools` | 5.2.0 | `npm ls @machinemetrics/mm-react-tools` | `npm i @machinemetrics/mm-react-tools@^5.2.0` |
 | `@machinemetrics/mm-react-components` | 1.6.1 | `npm ls @machinemetrics/mm-react-components` | `npm i @machinemetrics/mm-react-components@latest` |
 
@@ -212,7 +290,7 @@ data, which is how a dry run got a deployment live before noticing.
 | The active `mmdev` environment | `mmdev environment list` |
 | The OAuth client's environment | Whichever client `public/default.json` names. See the repair table below |
 | The deployment's config | `public/default.json`: `releaseStage`, and `urls` only if something set it |
-| **The gateway's environment** | Not printed anywhere. Establish it by asking, see `setup` |
+| **The gateway's environment** | Not printed anywhere. Run `{ companies { name } }` and see whose data comes back; see `setup` |
 
 Environment **names** map to API and login URLs, and the mapping is not guessable from the
 name. The two real ones are in [partitions.md](partitions.md), alongside the note that a deployment sets
@@ -229,7 +307,8 @@ whether the names and ids are the staging tenant or the production one. Then sta
 environment the gateway is on alongside which one `mmdev` is on.
 
 Be careful with the obvious shortcut: in some tenants machine and shift ids are **identical**
-across staging and production, so matching ids prove nothing. Check something that differs.
+across staging and production, so matching ids prove nothing. A **company name** differs: run
+`{ companies { name } }` and see whether a real customer comes back or a staging fixture.
 
 A fresh scaffold does not guarantee they agree. If they disagree, decide which is right and
 make the other two match. Noting the mismatch and moving on is not enough: it resurfaces later
@@ -255,6 +334,33 @@ was active when `dev-apply` ran. If `~/.mmrc` already holds a client for that en
 the same `LOCAL TEST` client. That is fine for local work. A deployment intended for real users
 should get its own client instead, which `implement` covers.
 
+**When the account already carries several `LOCAL TEST` clients, reuse, do not add.** This is
+common on a machine that has been set up before, and it is not a mess to clean up: `mmdev
+oauth` has `add`, `list` and `update` but **no delete**, so every one of them is permanent and
+a tidying pass only makes it worse.
+
+Reuse the one `~/.mmrc` already names for the active environment. It is the one `dev-apply`
+would copy, and if it covers the port the playground will use, nothing needs doing at all:
+
+```bash
+mmdev oauth list        # what the account already carries
+node -p "require(process.env.HOME + '/.mmrc/default.json').clientId"
+```
+
+Run `dev-init` only when that file has no client for the active environment. It is a no-op
+when one exists, so the risk is not running it twice: it is running it once per environment
+they switch to, each one permanent. Say which client the session is using and why, rather
+than minting another.
+
+**Reuse only covers clients this machine already holds.** The two commands above answer
+different questions: `oauth list` reads the account, `~/.mmrc` reads this machine. When the
+account carries a `LOCAL TEST` client that this `~/.mmrc` does not name, no command adopts it
+and `dev-init` mints another. Adopt it by hand instead: write its `clientId` into
+`~/.mmrc/environments/<environment>/default.json`, and into the root `default.json` when that
+environment is active, before running `dev-apply`. Confirm its redirect URIs cover the port the
+playground will use. `mmdev oauth update` sets them, but it **replaces** the list rather than
+adding to it, so pass every URI the client still needs.
+
 **Do not run `mmdev oauth dev-apply` here.** It copies the client into a project's
 `public/default.json`, and at setup time there is no project: this skill runs before `start`,
 `spec`, and any scaffold. `implement` runs it directly after `mmdev create`, which is the
@@ -272,6 +378,40 @@ present and authorized on a narrower grant than the build needs. **Read
 
 Say which partition it answered on, not just that it answered. [partitions.md](partitions.md) has the two
 reachable ones and what each implies.
+
+**Settle the Carbide Data grant here, even though nothing needs it yet.** A gateway that
+answers GraphQL while the nine Carbide Data tools are missing is the narrow-grant state.
+`gateway.md` has the one-command check and the fix. Run them now and say which state it was in.
+
+Settling it here is about deciding early rather than fixing early. Where the account can hold
+the scope, the fix ends in an interactive authorization and a tool rebind, which costs nothing
+on a machine that is not yet building and breaks the thread on one that is. Where it cannot,
+the answer is that storage surfaces are not buildable from this account, and that is worth
+knowing on the first day rather than halfway through a spec that assumes them.
+
+**Attempt it once, and treat a grant that is still narrow as the answer.** Building anything
+that stores records requires the `custom-data:schema` scope, and not every account can hold it.
+Nothing tells you in advance which kind you are: `scopes_supported` describes what the
+environment offers, not what this account is entitled to, so a gateway can advertise the scope
+and still never issue it to this session. The attempt is the check.
+
+So run the fix once. If the tools appear, say so and carry on. If the grant is still narrow
+afterwards, stop there and say it plainly, in terms of the scope rather than of whoever grants
+it:
+
+> This account cannot hold the `custom-data:schema` scope, so a deployment that stores its own
+> records is not buildable from it. Everything that reads existing MachineMetrics data is
+> unaffected.
+
+Then do not retry it in this session, and carry that sentence into the handoff. It is a
+constraint on the spec, not only on the machine: `storage-fit` should reach `storage: blocked`
+from it directly rather than discovering the same wall a second time.
+
+**Do not name the role that carries the scope.** Which role implies `custom-data:schema` is a
+Dashboard implementation detail and is expected to change, so a skill that names one is wrong
+from the day it does, in the worst way: confidently sending a developer to obtain something
+that no longer governs the outcome. Name the scope, which is stable, and let the attempt
+establish whether they have it.
 
 ## 7. Check the local environment can host what it needs to
 
@@ -329,8 +469,14 @@ The fix is either a resolver that answers, or a hosts entry mapping
 ## 8. Confirm the whole thing before moving on
 
 Run each command and compare against the expected output. **Do not report this section as
-done by listing what you believe is true:** run the commands, paste what came back, and name
-any row you could not run.
+done by listing what you believe is true:** run every command and read what came back, and
+know which rows you could not run.
+
+**That governs what you verify, not what you paste.** Every row gets run; the developer gets
+the summary. Passing rows are one sentence, a row that failed or that you changed gets a line
+of its own, and a row you could not run is named because it is a gap rather than a pass. Show
+raw output where a failure needs explaining, which is the one case where it is the shortest
+way to say what happened.
 
 | Check | Command | Expected |
 | :--- | :--- | :--- |
@@ -341,7 +487,7 @@ any row you could not run.
 | Node | `node --version` | `v24.` or newer |
 | Docker, if the work needs it | `docker run --rm hello-world` | `Hello from Docker!` |
 | **Windows only.** Docker WSL integration | `docker context ls` | A context resolves, no `cannot connect` |
-| mmdev present and current | `mmdev --version` | `1.0.0` or newer. It prints and exits: the update notice never blocks |
+| mmdev present and current | `mmdev --version` | `1.0.3` or newer. It prints and exits: the update notice never blocks. No output means an incomplete binary, not a version problem |
 | Logged in | `mmdev environment list` | Lists environments and marks one active, no auth error |
 | Local OAuth client for the **active** environment | `node -p "!!require(process.env.HOME + '/.mmrc/default.json').clientId"` | `true`. The root file mirrors the active environment, so a client under some other environment does not count. Node is used rather than Python, which this contract does not require |
 | Gateway answers | Call a `knowledgeBase` tool with any string | A real response, not an error |
@@ -362,9 +508,9 @@ so pick the one the platform has rather than reporting the check as impossible.
 
 Two rows deserve extra suspicion because both fail while looking fine:
 
-- **`mmdev --version` hanging with no output** means an install far enough behind to predate
-  the non-blocking update notice. `mmdev update` fixes it, and nothing downstream
-  works until it is fixed.
+- **`mmdev --version` hanging** is an install old enough to predate the non-blocking update
+  notice. **Returning immediately with no output** is a different problem: an incomplete
+  binary. Both are settled in step 3.
 - **A gateway that reports connected can still refuse every call.** Only the tool response
   proves the token. Run the call.
 - **A `knowledgeBase` call can fail on output validation rather than on auth.** Some documents
@@ -382,13 +528,15 @@ deployment and is not one:
 
 | What you see | What it actually is | Settled in |
 | :--- | :--- | :--- |
-| `mmdev --version` hangs or prints nothing | An install old enough to stop on the interactive update prompt | Versions |
+| `mmdev --version` hangs | An install old enough to stop on the interactive update prompt | Versions |
 | `Please run 'mmdev oauth dev-init'` | The per-environment client was never created, or was created against a different environment | Authenticate |
 | The deployment reads one tenant's data and authenticates against another | The four legs disagree. Nothing prints this; it looks like bad data | Confirm which environment |
 | GraphQL answers but the Carbide Data tools are absent | A narrow grant, not a broken plugin. The scope set of a brokered connector is decided server-side | Connect the gateway |
 | Tools still absent after authenticating | The registry was bound when the session started. Clear the authentication and authenticate again before restarting anything | Connect the gateway |
 | A 400 from the credential broker on a local URL | `localhost` is not an origin the dev client trusts | Check the local environment |
 | A bind error on start, with no clear message | Port 3000, or one of 4000-4010, is already held, often by a playground from an earlier session | Check the local environment |
+| `mmdev --version` returns immediately, printing nothing | An incomplete binary. Re-run the installer; it resumes and verifies | Install mmdev |
+| `mmdev: command not found` | A shell that was not reloaded, or a platform with no published binary. Re-running the installer fixes neither, and on Linux arm64 it never will | Install mmdev, the three ways `mmdev --version` fails |
 | `sudo: A terminal is required to authenticate` | A session cannot answer a `sudo` prompt. The `mmdev` installer needs no root | Install mmdev |
 | `curl: (23)` | A pipe into `sudo`, not a network problem | Install mmdev |
 

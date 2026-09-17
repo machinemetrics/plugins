@@ -8,6 +8,23 @@ The plugin ships no gateway. The developer installs it and chooses their partiti
 deliberate: a bundled server would take precedence over a connector they configured, so a
 developer on GovCloud would be silently pointed at Commercial.
 
+## First, which surface are they in?
+
+Settle this before running any check below, because every check reads a particular surface and
+the four states only mean something once you know which one you are reading. Claude Code runs
+in the terminal, in the Claude Desktop app, and as an extension inside VS Code and the
+JetBrains IDEs, and they do not all read the same configuration.
+
+Ask rather than infer. `claude mcp list` reports what the CLI has and says nothing about an
+extension, so running it for someone in VS Code reports a missing gateway while a working
+connector is present in their terminal. The connectors page is likewise a property of the
+account, not of any one surface.
+
+So read the state through the surface they are actually using, and where they disagree, that is
+the finding: the fallback below settles it by registering the server where that surface reads.
+Say it is a per-surface fix rather than a repair, so nobody goes looking for a fault that is not
+there.
+
 ## Is it already connected, and to which partition?
 
 Do not infer the partition from tool names. The same gateway surfaces under different names
@@ -42,10 +59,19 @@ look alike:
 curl -s <gateway URL for their partition>/.well-known/oauth-protected-resource
 ```
 
-It lists `scopes_supported`. If `custom-data:schema` is there, the environment offers the scope
-and this session's grant is simply narrower than it could be, which is fixable from here. If it
-is absent, no amount of re-authenticating will produce those tools and the conversation is with
-whoever owns the deployment.
+It lists `scopes_supported`. If `custom-data:schema` is absent, no amount of re-authenticating
+will produce those tools and the conversation is with whoever owns the deployment.
+
+**Its presence is necessary and not sufficient.** It says the environment offers the scope, not
+that this account is entitled to hold it, and the two are different: a gateway can advertise
+`custom-data:schema` and still never issue it to this session. Nothing distinguishes the two
+cases in advance, so the fix below is also the check. Run it once. If the tools appear, the
+grant was narrower than it could be. If they do not, this account cannot hold the scope, which
+is an answer rather than a failure: say so, and do not run it again in this session.
+
+Say it in terms of the scope. Which role carries `custom-data:schema` is a Dashboard
+implementation detail and is expected to change, so a skill that names a role is wrong the day
+it does, and sends a developer after something that no longer decides the outcome.
 
 **GraphQL working while the Carbide Data tools are missing has a specific cause.** It is the
 signature of a brokered connector whose scope set is decided server-side, where the developer
@@ -59,8 +85,8 @@ because the plugin-level connection and the server's OAuth token are different t
 the first is visible. It has cost a live demo: every tool present, every call failing.
 
 **Prove the token with a real call.** Any cheap gateway tool, for example a `knowledgeBase`
-query with any string. A successful response proves it. Say you are probing, so the call does
-not read as a random detour.
+query with any string. A successful response proves it. Name the call as you make it, so it
+does not read as a random detour. Naming it is enough, without the reasoning behind it.
 
 A user who has just re-authenticated may still be talking to a session holding a stale token,
 and nothing in the server list reveals that. Their word is not evidence; the response is.

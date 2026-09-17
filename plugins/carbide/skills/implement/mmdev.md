@@ -38,7 +38,7 @@ under active development and gains commands.
 through npm or Homebrew**, so do not reach for `npm i -g` or `brew install`. `mmdev update`
 upgrades an existing install in place.
 
-`setup` owns the version check: these skills assume `mmdev` 1.0.0 and the current libraries,
+`setup` owns the version check: these skills assume `mmdev` 1.0.3 and the current libraries,
 and nothing here branches on an older one.
 
 ## Templates
@@ -158,6 +158,8 @@ double, so they prove layout and nothing about embedding.
 | :--- | :--- |
 | `docker compose up` fails, `repository name must be lowercase` | A non-kebab-case project name became the compose service key |
 | Hangs with no output | An install behind 1.0.0, stopping on the old interactive update prompt. `mmdev update`. From 1.0.0 the notice is one stderr line that never blocks |
+| Returns immediately, printing nothing | An incomplete binary. Re-run the installer once; from 1.0.3 it verifies before activating. Not the same as a hang, and `mmdev update` will not fix it |
+| `command not found` | The shell was not reloaded (`exec $SHELL -l`), or the platform has no published binary. Linux arm64 has none |
 | `Template not found` | Template not in the installed CLI |
 | Auth fails after a clean build | Environment invariant broken |
 | Playground shows stale behaviour | An older playground on another port |

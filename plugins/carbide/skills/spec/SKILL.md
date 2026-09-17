@@ -25,14 +25,29 @@ OAuth. That changes what you explain, never how much you assume.
 - **Name the phase, not the machinery.** "That settles the spec, so we can start building"
   tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
   step, never a citation.
-- **Narrate less, report more.** Group the work, then say what came of it.
+
+**Report what needs action, not what you did.** A developer who would have been happy with
+"all good, let's start" should get roughly that. What earns a line:
+
+- A check that failed, or that changed something. Everything that passed is one sentence:
+  "prerequisites, DNS and ports all check out." A table of green rows is the report working for
+  you rather than for them.
+- One question at a time. Where two are open, ask the one blocking the next step and hold the
+  other until it matters.
+- Name the call, do not justify it. "Checking the gateway" orients them in three words.
+  "Probing the gateway with a cheap docs query, so this call is a check and not a detour" is the
+  skill's own reasoning read aloud, and they cannot see the skill that would make it land.
+
+Length is the symptom worth watching. A handoff that runs past a screen is usually reporting
+the work rather than the result.
 
 **They are a peer with a different access surface.** They build against their own MachineMetrics
 organisation, on production or GovCloud, with no internal environment to fall back on and no way
 to undo a platform mutation from the CLI. That changes which options exist.
 
 Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
-that precision is what catches errors before they reach the shop floor.
+that precision is what catches errors before they reach the shop floor. It governs the
+numbers you do give, not how many of them you give.
 ## What the spec must answer
 
 Ask these one at a time. Do not send a questionnaire.
@@ -220,7 +235,9 @@ Four rules, and they are not optional:
    makes it cheap, and it is why a complete spec does not require a schema to exist yet.
 3. **No polish.** No tests, no error handling beyond making it run, no abstractions.
 4. **Delete it when the question is answered.** Fold the answer into `SPEC.md`. The prototype
-   does not become the deployment: `implement` scaffolds fresh from the template.
+   does not become the deployment: `implement` scaffolds fresh from the template. If it was
+   also published anywhere, an artifact link or a preview URL, take that copy down too: a
+   live prototype that outlasts the spec is the same trap, reachable by more people.
 
 Rule 4 is the one that gets skipped. A prototype that grows into the shipped app is how a
 deployment demos beautifully and is silently reading fixtures.

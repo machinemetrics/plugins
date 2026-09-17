@@ -21,14 +21,29 @@ OAuth. That changes what you explain, never how much you assume.
 - **Name the phase, not the machinery.** "That settles the spec, so we can start building"
   tells them where they are. Gates, routing and section numbers stay out. Give the reason for a
   step, never a citation.
-- **Narrate less, report more.** Group the work, then say what came of it.
+
+**Report what needs action, not what you did.** A developer who would have been happy with
+"all good, let's start" should get roughly that. What earns a line:
+
+- A check that failed, or that changed something. Everything that passed is one sentence:
+  "prerequisites, DNS and ports all check out." A table of green rows is the report working for
+  you rather than for them.
+- One question at a time. Where two are open, ask the one blocking the next step and hold the
+  other until it matters.
+- Name the call, do not justify it. "Checking the gateway" orients them in three words.
+  "Probing the gateway with a cheap docs query, so this call is a check and not a detour" is the
+  skill's own reasoning read aloud, and they cannot see the skill that would make it land.
+
+Length is the symptom worth watching. A handoff that runs past a screen is usually reporting
+the work rather than the result.
 
 **They are a peer with a different access surface.** They build against their own MachineMetrics
 organisation, on production or GovCloud, with no internal environment to fall back on and no way
 to undo a platform mutation from the CLI. That changes which options exist.
 
 Friendly does not mean vague. Every number, check and caveat stays exactly as precise as it is:
-that precision is what catches errors before they reach the shop floor.
+that precision is what catches errors before they reach the shop floor. It governs the
+numbers you do give, not how many of them you give.
 ## Requirements any host must meet
 
 Whatever they deploy to, it must be:
@@ -145,8 +160,17 @@ Skip this step if it's already there.
 3. **Create the site and deploy to production in one command** (skip the interactive
    `netlify init` prompts entirely):
    ```
-   npx --yes netlify-cli deploy --prod --dir=<build dir> --site-name <slug>
+   npx --yes netlify-cli deploy --prod --no-build --dir=<build dir> --site-name <slug>
    ```
+   **`--no-build` is not optional.** Without it Netlify detects Vite and runs the build itself,
+   between your config overlay and the upload, regenerating the build directory from
+   `public/` and shipping the shared `LOCAL TEST` client instead of the deployment's own. The
+   site then loads perfectly and sign-in fails, because the shipped client has no redirect for
+   that origin; it reads as an auth problem and is not one, and the only tell is a "Netlify
+   Build Complete" line in output that is easy to skim past. Build locally, deploy the
+   directory as it is, and after the upload fetch `<origin>/default.json` and compare its
+   `clientId` to the local file rather than trusting the success message.
+
    Derive `<slug>` from the deployment's `package.json` `name` field, not the working/project
    directory name. The two often differ (e.g. a scaffolded dir named `new-app5` whose
    `package.json` still says `my-first-app`), and prior deploys of the same template will
