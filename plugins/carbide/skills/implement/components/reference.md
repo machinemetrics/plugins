@@ -1,5 +1,10 @@
 # Carbide component reference
 
+Read this when `@machinemetrics/mm-react-components` is not installed in the workspace, so
+its version-matched agent docs are unavailable. It covers the stable conventions (tokens,
+layout, setup), how to discover components once the package is present, and a widget-rules
+summary. It keeps no export catalog on purpose.
+
 ## Stable conventions
 
 - **Appearance:** Use semantic tokens and current component appearance props. Never copy

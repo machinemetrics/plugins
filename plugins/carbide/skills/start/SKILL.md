@@ -230,7 +230,7 @@ npm ls @machinemetrics/mm-react-tools @machinemetrics/mm-react-components
 ```
 
 Either package below the version `setup` requires routes there as well, `mm-react-tools` below
-5.2.0 or `mm-react-components` below 1.6.1. Use the scoped names: the unscoped ones report
+5.2.0 or `mm-react-components` below 1.6.4. Use the scoped names: the unscoped ones report
 nothing rather than failing, which reads as "not installed" on a project that has them.
 
 **Does the gateway actually answer?** Probe it: call any cheap gateway tool, for example a

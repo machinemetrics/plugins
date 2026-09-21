@@ -1,6 +1,9 @@
 # Composition recipes
 
-Surface-level composition recipes; read the one matching what you're building.
+Read this when building one of the recipe surfaces below: a sidesheet or register/edit
+form, a data-table page, a standalone page shell, empty and loading states, or dialogs and
+toasts. It covers the shipped example to copy for each, the composition it uses, and the
+known divergences in shipped apps. Read only the recipe that matches what you're building.
 
 Every recipe assumes MachineMetrics density: `text-sm` body, flex + `gap-*` spacing, `p-4`/`p-6`
 padding, `h-8` toolbar controls, and a `mt-6 flex justify-end gap-2` footer with an outline

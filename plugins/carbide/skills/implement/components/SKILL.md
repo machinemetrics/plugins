@@ -8,6 +8,18 @@ description: Build the interface using Carbide components from @machinemetrics/m
 Build the interface from `@machinemetrics/mm-react-components` so the deployment looks and
 behaves like MachineMetrics.
 
+This skill and its reference files are maintained in the `mm-react-components` repository
+under `cursor-skill/components/`. The package installer copies them from the installed
+package, and the Carbide plugin regenerates its copy from the `dist/cursor-skill/components`
+of a pinned published release, applying its own frontmatter and package-only transforms. So
+edit them upstream, and expect a change to reach the plugin only after a release is
+published and the plugin's pin is moved to it.
+
+Each reference file opens with a one-line trigger saying when to read it and what it
+covers, so read a reference when its trigger matches the task, not on a guess:
+[reference.md](reference.md), [recipes.md](recipes.md), [house-style.md](house-style.md),
+[widget-rules.md](widget-rules.md).
+
 
 ## Invariants
 
@@ -56,10 +68,11 @@ Use sources in this order:
    `node_modules/@machinemetrics/mm-react-components/agent-docs/`.
 3. Use [reference.md](reference.md) as the offline fallback.
 
-**Locate the app root first.** Every command in this skill uses paths relative to the
-directory whose `package.json` declares `@machinemetrics/mm-react-components`, the
-`mmdev create` scaffold puts that at `<project>/app`, not the repo root. Resolve it once and
-run the rest from there:
+**Locate the app root first.** Every path in this skill is relative to `$APP_ROOT`: the
+nearest directory whose `package.json` declares `@machinemetrics/mm-react-components` as a
+dependency (the cwd, or up to two directory levels below it, skipping `node_modules` and
+dot-directories), the `mmdev create` scaffold puts it at `<project>/app`, not the repo
+root. Resolve it once and run everything from there:
 
 ```bash
 APP_ROOT=$(node -e "const fs=require('fs'),p=require('path');const has=(d)=>{try{const j=JSON.parse(fs.readFileSync(p.join(d,'package.json'),'utf8'));return !!{...j.dependencies,...j.devDependencies}['@machinemetrics/mm-react-components']}catch{return false}};const hits=[];(function w(d,left){if(has(d))hits.push(d);if(left<=0)return;for(const e of fs.readdirSync(d,{withFileTypes:true}))if(e.isDirectory()&&e.name!=='node_modules'&&!e.name.startsWith('.'))w(p.join(d,e.name),left-1)})(process.cwd(),2);console.log(hits[0]||process.cwd())")
@@ -80,7 +93,8 @@ stay unverified until the package is installed and must be labeled as such. A fa
 lookup without the package proves nothing.
 
 With the package installed, run this command for each export (substitute the export's
-actual name for `<Name>`) and require a match:
+actual name for `<Name>`; the `\b` word boundaries keep `StatusBadgeProps` from counting
+as proof of `StatusBadge`) and require a match:
 
 ```bash
 node -e "const s=require('fs').readFileSync('node_modules/@machinemetrics/mm-react-components/dist/index.d.ts','utf8');const m=s.split(/\r?\n/).filter(l=>/\b<Name>\b/.test(l));console.log(m.join('\n')||'<Name>: no export matched');process.exitCode=m.length?0:1"
@@ -112,14 +126,17 @@ grep -cE '(^|[[:space:]},{:)>~+])\.gap-2([{,;:)[:space:]]|$)' "$APP_ROOT/node_mo
 
   Anchor on the SELECTOR, not the bare name: a plain `grep -c 'gap-2'` is a substring match
   that also counts `p-2`, `gap-20`, `gap-2\.5`, and any comment, reporting a class as safe
-  when no rule for it exists. A non-zero count means the class is safe.
+  when no rule for it exists. A non-zero count means the rule exists; zero means it does not.
 
   **Escape the class name before substituting it.** CSS backslash-escapes the `:` in a
   variant selector, so `md:grid-cols-2` is on disk as `.md\:grid-cols-2`. Substituting the
   name verbatim matches nothing and reports a present class as missing, which is worse than
-  no check: it deletes working styles. Write `\\:` for a colon and `\\.` for a dot, so
-  `md:grid-cols-2` is searched as `md\\:grid-cols-2` and `gap-2.5` as `gap-2\\.5`. If a
-  variant class you can see in the browser reports as missing, this is why. (The stylesheet is
+  no check: it deletes working styles. Write `\\:` for a colon, `\\.` for a dot, and `\\/`
+  for a slash, so `md:grid-cols-2` is searched as `md\\:grid-cols-2`, `gap-2.5` as
+  `gap-2\\.5`, and `bg-muted/30` as `bg-muted\\/30`. If a variant or fraction class you can
+  see in the browser reports as missing, this is why.
+
+  (The stylesheet is
   minified onto one line, so the count is 1 or 0, presence is the whole signal.) **Arbitrary-value classes (`min-h-[200px]`,
   `max-w-[200px]`) are never in it** and are silent no-ops, no error, just an unstyled
   element, unless the app has its own Tailwind build (a `tailwindcss` dependency plus a
@@ -188,8 +205,9 @@ use a content container as structural page layout or assume it supplies scrollin
 ## Widgets
 
 A widget is a view that appears on a configurable dashboard, and it has stricter rules than
-a full page. Before building or changing any widget, read [widget-rules.md](widget-rules.md)
-for the full rules. Summary:
+a full page. Before building or changing any widget, read [widget-rules.md](widget-rules.md):
+it covers sizing for the dashboard grid, the visual-first rule, data integrity, and the
+chart conventions. Summary:
 
 - **Visual, not textual.** Every widget needs at least one chart, graph, or visual
   representation. Text is for titles, labels, and short annotations: aim for 80 percent
@@ -235,17 +253,19 @@ Follow these steps exactly:
 ```markdown
 ## Component gaps
 
-- <needed behavior>: no export matched `node -e "console.log(/\b<Name>\b/.test(require('fs').readFileSync('node_modules/@machinemetrics/mm-react-components/dist/index.d.ts','utf8')))"`; compositions tried: <list>.
+- <needed behavior>: `<Name>` appears nowhere in the installed build's `dist/index.d.ts` (word-boundary match); compositions tried: <list>.
 ```
 
 3. **Do not modify the base layer.** Base components get overwritten by CLI and upstream
    updates, so changes there are lost.
-4. Before adding anything in a gap (a wrapper, a re-export, or a new primitive), read
-   [component-structure.md](component-structure.md), then add customisations only in your
-   own customization layer, such as `ui/` or `components/app/`. Re-export from the base and
-   override through composition. A new primitive is permitted only when it is app-owned,
-   lives in the customization layer, does not imitate or shadow a library component's name
-   or API, and is named in the Component gaps report from step 2.
+4. Before adding anything in a gap (a wrapper, a re-export, or a new primitive), put it in
+   your own customization layer, such as `ui/` or `components/app/`, never beside the
+   installed components. Re-export from the base and override through composition, keeping
+   the base component's documented props, theming attributes (`data-slot`, `data-variant`)
+   and accessibility contract so the theme stylesheet still targets it. A new primitive is
+   permitted only when it is app-owned, lives in the customization layer, does not imitate
+   or shadow a library component's name or API, and is named in the Component gaps report
+   from step 2.
 5. **Preserve the base contract.** Follow the installed version's composition, typing,
    accessibility, and theming conventions instead of prescribing React mechanics here.
 
@@ -255,19 +275,22 @@ successful path, not the escape hatch.
 ## 4. Audit and repair
 
 Before completion, audit the entire interface surface, including code you did not add.
-The audit is a set of checks to run, not a matter of taste. Every command runs from
-`$APP_ROOT` (step 1). Repair every violation within the requested scope:
+The audit is a set of checks to run, not a matter of taste. Each is an exhaustive sweep of
+`src/**` source files (`.ts/.tsx/.js/.jsx`, plus `.html`/`.css`/`.scss` where noted), search however
+you like, but report and repair every hit, not the first one. Repair every violation within
+the requested scope:
 
 - setup: one library styles import and the `carbide` root class;
-- selection: Carbide controls instead of raw controls or competing libraries, check with
-  `node -e "const fs=require('fs'),p=require('path'),re=/<(button|input|select|textarea)\b/;(function w(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const f=p.join(d,e.name);if(e.isDirectory())w(f);else if(/\.(jsx?|tsx?|html)$/.test(e.name))fs.readFileSync(f,'utf8').split(/\r?\n/).forEach((l,i)=>{if(re.test(l))console.log(f+':'+(i+1)+':'+l.trim())})}})('src')"` and justify or replace every hit;
+- selection: Carbide controls instead of raw controls or competing libraries, sweep for
+  raw `<button`, `<input`, `<select`, `<textarea` elements (`.html` included) and justify
+  or replace every hit;
 - composition: required compound children, variants, and current props;
-- appearance: semantic tokens and variants, with light and dark theme parity, check with
-  `node -e "const fs=require('fs'),p=require('path'),re=/#[0-9a-fA-F]{3,8}\b|rgb\(/;(function w(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const f=p.join(d,e.name);if(e.isDirectory())w(f);else if(/\.(jsx?|tsx?|html|s?css)$/.test(e.name))fs.readFileSync(f,'utf8').split(/\r?\n/).forEach((l,i)=>{if(re.test(l))console.log(f+':'+(i+1)+':'+l.trim())})}})('src')"` and replace hardcoded colors with tokens;
-- embedded chrome: if `node -e "require.resolve('@machinemetrics/mm-react-tools')"` succeeds,
-  the app is embedded, check with
-  `node -e "const fs=require('fs'),p=require('path'),re=/<(Sheet|Dialog|AlertDialog|Toaster)\b/;(function w(d){for(const e of fs.readdirSync(d,{withFileTypes:true})){const f=p.join(d,e.name);if(e.isDirectory())w(f);else if(/\.(jsx?|tsx?)$/.test(e.name))fs.readFileSync(f,'utf8').split(/\r?\n/).forEach((l,i)=>{if(re.test(l))console.log(f+':'+(i+1)+':'+l.trim())})}})('src')"`
-  and, for every hit, point at the demonstrable non-embedded branch it sits inside or remove it;
+- appearance: semantic tokens and variants, with light and dark theme parity, sweep for
+  hardcoded colors (`#hex` literals and `rgb(` calls, `.css` and `.scss` included) and replace them
+  with tokens;
+- embedded chrome: if `@machinemetrics/mm-react-tools` resolves from the app, the app is
+  embedded, sweep for `<Sheet`, `<Dialog`, `<AlertDialog`, `<Toaster` and, for every hit,
+  point at the demonstrable non-embedded branch it sits inside or remove it;
 - behavior: loading, empty, error, disabled, and overflow states;
 - resemblance: render the surface and LOOK at it, dev server plus a screenshot, or the app's
   preview route, and compare it against the recipe's example and preview for that archetype.

@@ -172,7 +172,7 @@ than adapting the build to an old toolchain.
 | :--- | :--- | :--- | :--- |
 | `mmdev` | 1.0.3 | `mmdev --version` | `mmdev update`, then confirm with `mmdev --version`. If that leaves it broken, re-run the installer |
 | `@machinemetrics/mm-react-tools` | 5.2.0 | `npm ls @machinemetrics/mm-react-tools` | `npm i @machinemetrics/mm-react-tools@^5.2.0` |
-| `@machinemetrics/mm-react-components` | 1.6.1 | `npm ls @machinemetrics/mm-react-components` | `npm i @machinemetrics/mm-react-components@latest` |
+| `@machinemetrics/mm-react-components` | 1.6.4 | `npm ls @machinemetrics/mm-react-components` | `npm i @machinemetrics/mm-react-components@latest` |
 
 The two libraries belong to a project, so check them in the project's `app/` directory. A
 machine with no project yet has nothing to check.

@@ -1,7 +1,7 @@
 {
   "name": "carbide",
   "displayName": "Carbide",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Build an application for your shop on MachineMetrics: specify it conversationally, build it with Carbide components, store data in Carbide Data when it needs storage, then deploy it on your own infrastructure and register it with MachineMetrics.",
   "author": {
     "name": "MachineMetrics",

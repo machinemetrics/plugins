@@ -1,5 +1,9 @@
 # MachineMetrics house style
 
+Read this before styling any surface, and before building any overlay in an embedded app.
+It covers the embedded-host overlay rule, density and typography, spacing, the footer idiom,
+icons, the semantic token families, and the no-Tailwind-build caveat.
+
 Carbide primitives decide *what* to render; this file decides *how dense* it looks. Every
 rule below is what shipped MachineMetrics apps actually do, match it so a new surface reads
 as part of the product instead of a default shadcn page.
@@ -120,9 +124,28 @@ Embedded MachineMetrics clients typically have **no Tailwind build of their own*
 @import '@machinemetrics/mm-react-components/themes/carbide';
 ```
 
-That stylesheet contains only the utilities the library's own sources needed. A class the
-library never used, most importantly any **arbitrary-value** class such as `min-h-[300px]`
-or `max-w-[200px]`, has no rule to match and is a silent no-op: no error, just an unstyled
-element. Prefer a plain scale class the library itself already uses. When a specific value is
-genuinely required, the escape hatch is a small scoped plain-CSS rule (or a `style` prop),
-never a bracketed class.
+That stylesheet contains only the utilities the library's own sources needed. Any class the
+library never used has no rule to match and is a **silent no-op**: no error, no warning, just
+an unstyled element. This bites two ways:
+
+- **Arbitrary-value** classes (`min-h-[300px]`, `max-w-[200px]`) never exist. When a specific
+  value is genuinely required, the escape hatch is a small scoped plain-CSS rule (or a `style`
+  prop), never a bracketed class.
+- **Ordinary scale classes can be missing too, and presence is scattershot per release.**
+  The stylesheet holds exactly what the library's own sources happened to use: field builds
+  on 1.6.1 lost styling to standard-looking classes with no rule then (`opacity-75`,
+  `opacity-90`, `lg:grid-cols-5`), some of which ship in later releases, which is exactly
+  the point. Do not extrapolate a utility from its neighbors, its other variants, or another
+  version; check the installed stylesheet.
+
+Before using a class you haven't seen in this skill's recipes or the library's own examples,
+run `./node_modules/.bin/mm-carbide-check-classes` from the consumer app root, it scans
+`src/**` and reports any className token missing from the shipped CSS. Use that path, not
+`npx`: the bin name is not a registry package, and npx resolves a missing bin against the
+registry (a squattable name), while the direct path just fails with "No such file" on
+mm-react-components before 1.6.4. The checker parses with TypeScript, which must resolve
+from the app (`mmdev` scaffolds ship it; a plain-JS app needs `npm i -D typescript` first,
+the tool says so and exits rather than guessing). For ongoing protection, a team can wire it
+into the app's own scripts (`"check:classes": "mm-carbide-check-classes"`), the tool is
+maintained and versioned with the library, so this is a one-line opt-in, not a vendored
+script.
