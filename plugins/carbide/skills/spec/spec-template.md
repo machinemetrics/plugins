@@ -24,6 +24,10 @@ prototype: built and deleted | skipped, <reason>
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | <name> | widget \| tab \| fullpage | <the person, where they are standing> | pending | pending | specified |
 
+<One line per surface that is `blocked`, or left `specified` at a gate: name the surface, why,
+and what clears it. `Operator log is blocked: machine source unproven. Cleared by running
+<call>.` Nothing here when every surface is plainly `specified`.>
+
 ## Data sources
 
 | What | Source | Read or written | Proven by |
@@ -59,10 +63,14 @@ scaffolds. A blank cell is an unfinished spec; `pending` is a filled one that sa
 owns the answer.
 
 **Status** starts at `specified`. `implement` moves it to `built` only when the exit gate
-passes, and `deploy` moves it to `deployed`.
+passes, and `deploy` moves it to `deployed`. The cell carries the value alone. The reason a
+surface is `blocked`, or the gate line a surface was left `specified` on, goes in the note under
+the table, one line per surface.
 
 **Proven by** carries the call that returned the value and what came back, not the word "yes".
-`user input` is the entry for a value the person types, and needs no proof.
+`user input` is the entry for a value the person types, and needs no proof. `owed` is the
+entry for a source this session could not prove, and is valid only while every surface that
+reads it is `blocked`.
 
 A row that writes to a table this spec creates reads `schema pending`, and its inputs are proven
 where they come from, with the type that came back. A field holding a reference to something the

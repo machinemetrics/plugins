@@ -87,12 +87,13 @@ the find returns more than one, do not guess: name them and ask which is the dep
 | No `storage:` line, or it reads anything but `yes`, `no` or `blocked` | The spec is not finished. `storage-fit` never returned a verdict |
 | `storage: blocked` | The model does not fit Carbide Data. Back to `spec`: this is not buildable as specified |
 | A cell reading `pending` | Not a gap. `implement` fills those two when it scaffolds |
+| A `Proven by` cell reading `owed` | Not a gap while every surface that reads that source is `blocked`, which routes it. If one of them is `specified`, the spec is not finished |
 | `SPEC.md` complete, no `public/default.json` anywhere below | Specified, not scaffolded |
 | A `public/default.json` exists | A project exists, at that directory. The file is the proof, not its contents |
 | That file has an empty or missing `clientId` | Still a project, with broken configuration. `implement`, to repair the client by its environment table. Never scaffold over it, and never assume `dev-apply` is the fix: on a deployed project it overwrites the deployment's own client |
 | A surface in `SPEC.md` at status `built` | Code exists for it, not yet shipped |
 | A surface at status `deployed` | It is live |
-| A surface at status `blocked` | Specified, and something outside the spec stops the build. The row says what |
+| A surface at status `blocked` | Specified, and something outside the spec stops the build. The note under the table says what |
 
 Say what you found. Do not report a state you did not read off disk.
 
@@ -371,7 +372,7 @@ is blocked is finished and has nothing on disk, so it matches the no-project row
 first match wins the lower row would never be reached: the session would scaffold a build that
 is known not to work.
 
-**A `blocked` surface goes to `spec`, not to `implement`.** Its row names the condition that
+**A `blocked` surface goes to `spec`, not to `implement`.** The note under the table names the condition that
 would clear it, so check that first: if the condition has been met, `spec` moves it to
 `specified` and the build proceeds. If it has not, say so and stop rather than building
 something known not to work. Do not route a blocked surface into `implement` on the grounds

@@ -8,8 +8,13 @@ description: Host a finished deployment, register it with MachineMetrics so it a
 The developer owns the code and the hosting. MachineMetrics governs identity, data access, and
 what appears inside the platform.
 
-Plan this early. Discovering a hosting problem after the application is built is the most
-common way a project stalls, so ask where it will be hosted during the spec.
+Discovering a hosting problem after the application is built is the most common way a project
+stalls, so the question is asked in `spec`, where it is still free to answer. It is in that
+skill's question list rather than here: an instruction to ask early, written in the file read
+last, reaches nobody in time.
+
+Arriving here with no answer to it is a gap worth naming rather than working around. Say the
+spec did not settle where this runs, then settle it before hosting anything.
 
 ## Working with the developer
 
@@ -62,7 +67,7 @@ solve, ahead of any code.
 each surface's status in `SPEC.md` before deploying it:
 
 - **`built`** means the gate passed. Deploy it.
-- **`specified`** means it did not, and the row says which line was left unmet. A surface whose
+- **`specified`** means it did not, and the note under the Surfaces table says which line was left unmet. A surface whose
   storage round-trip never ran has an untested write path, and deploying it does not test it
   either: the same failure arrives later, in front of an operator.
 

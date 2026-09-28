@@ -53,13 +53,14 @@ not necessarily the current directory: a scaffolded app sits at `<name>/app/`, t
 below the root, so check the parents too rather than concluding the spec is missing.
 
 - A surfaces table naming at least one surface and its status
-- A data-source table with no blank cells, including a `Proven by` entry on every row
+- A data-source table with no blank cells, including a `Proven by` entry on every row. `owed`
+  is not a proof: a surface that reads an `owed` source is not buildable
 - **An entities table.** The spec gate requires it and `carbide-data` treats it as a
   prerequisite, so a spec without one is unfinished even when `storage: no` means the storage
   step never runs. A deployment with no named entities is usually a spec that skipped the
   domain model rather than one that genuinely has none
 - The surface's status is not `blocked`. That status means the spec is settled and something
-  outside it stops the build, with the condition written in the row. Go back to `spec` and
+  outside it stops the build, with the condition in a note under the Surfaces table. Go back to `spec` and
   check whether the condition has cleared
 - The storage decision written as `yes` or `no`. **`storage: blocked` is not buildable**:
   `storage-fit` judged the model unable to fit Carbide Data, and the spec has to change
@@ -132,6 +133,36 @@ not invoke it: this skill does.
 Build the surface the spec names. A `widget`, an OperatorView `tab`, and a `fullpage` view
 differ in sizing, host contract, and what the user can do, so build for the one in `SPEC.md`
 rather than a generic screen.
+
+**Where the spec names a screen this should look like, look at an image of it before writing
+the UI.** Looking is the point: a description of that screen is enough to talk yourself out of
+the reference and build something else, with nothing downstream recording that the reference
+was dropped. The surface then ships as an invention, and the component the reference was made
+of goes unused.
+
+Product screens are documented at `https://docs.machinemetrics.com`, under
+`/docs/product-guides`, and the screenshots on those pages are public files you can open:
+
+```bash
+curl -fsSL -o /tmp/reference.png \
+  "https://docs.machinemetrics.com/assets/images/<name>-<hash>.png"
+```
+
+Then read that file. **Fetching the page is not the same as seeing the screen.** A page fetch
+returns the text of the page, so it gives you the image's URL and a description around it, and
+stopping there leaves you reasoning about prose again, one step later than before. The image
+has to reach you as an image.
+
+**Expect the screen not to be there, and plan for it.** The documentation covers product areas
+rather than every view, so a screen a developer names by its in-product title may have no page
+at all, and a page that exists may illustrate a different part of it. That is not a failure to
+work around quietly.
+
+When no image can be found, ask the developer for a screenshot. They are describing something
+they are looking at, and one image from them costs less than either of you discovering later
+that the build went its own way. If they cannot supply one either, say in `SPEC.md` that the
+appearance is unreferenced, and treat what you build as your proposal rather than as their
+request.
 
 **For an OperatorView `tab`, read the machine from context. Do not pass it in the URL.**
 
@@ -427,6 +458,29 @@ A query-string fallback that reads the machine from the URL is a leftover from a
 meet one in an existing project, remove it: an app tab is handed its machine, so reading it from
 the URL is wrong even where it appears to work.
 
+### Handing it over to be looked at
+
+Nothing here can judge whether a surface looks right, so a person has to open it. How the
+handoff is written decides whether that happens.
+
+**Open it yourself rather than describing how.** Start the deployment and the playground, then
+put the browser on the playground with the deployment URL in hand, so the developer arrives at
+a running surface rather than at a procedure. Check `mmdev playground --help` for what it
+accepts directly rather than guessing at a flag. A handoff written as steps to follow is work
+handed back, and it stalls.
+
+**Ask one open question, not a yes or no.** "Does this look right?" is answerable by saying
+nothing, and silence reads as approval whether or not it is one. Ask instead:
+
+> What is the biggest thing that is off?
+
+Take the answer literally: what they name is the next piece of work, not a note for later.
+Nothing off is also a real answer, and it meets this gate.
+
+**Where the spec names a screen this should look like, show both.** Put the reference image
+beside what was built and ask about the difference. That comparison is what the request was
+made of, and this is the last point where it is cheap.
+
 ### The exit gate blocks
 
 **This gate blocks. It is not a checklist to report against.** A line that cannot be satisfied
@@ -451,6 +505,11 @@ Do not treat the build as done until all of these are true:
 - For a `tab`, polling and subscriptions are gated on `params.isVisible`
 - For an **app tab**, the machine comes from `useMMAppContext()` and no query-string fallback
   remains
+- A person opened the running surface and answered what is the biggest thing that is off, and
+  what they named was either fixed or written into `SPEC.md` as a known difference
+- Where `SPEC.md` names a screen this should look like, the built surface was put beside an
+  image of it, not beside a description of it. Where no image could be found or supplied,
+  `SPEC.md` says so, and the appearance is recorded as your proposal rather than their request
 
 [class-audit.md](class-audit.md) has the procedure behind the `className` line.
 
@@ -461,7 +520,7 @@ writes, and the failures worth recognising.
 
 A line that cannot be met is a finding, not a formality. Say which line, what satisfying it
 would take, and what shipping without it risks, then let the person decide. **The surface stays
-`specified` rather than becoming `built`**, with the unmet line recorded beside it, and `deploy`
+`specified` rather than becoming `built`**, with the unmet line recorded in a note under the Surfaces table, and `deploy`
 reads that status.
 
 **Read [gate-exceptions.md](gate-exceptions.md) before taking that route.** It has what to say,

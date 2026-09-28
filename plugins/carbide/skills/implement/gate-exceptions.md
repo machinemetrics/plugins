@@ -9,7 +9,7 @@ what it would take to satisfy it, and what shipping without it risks. Then let t
 
 Two things make that an honest decision rather than a formality. **The surface's status in
 `SPEC.md` does not become `built`**, because `built` means the gate passed; leave it
-`specified` and record the unmet line beside it. And **the deployment carries the unmet line
+`specified` and record the unmet line in a note under the Surfaces table. And **the deployment carries the unmet line
 forward**: `deploy` reads the status, and a surface that never passed its storage round-trip is
 not a surface anyone should be told is working.
 

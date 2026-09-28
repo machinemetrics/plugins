@@ -72,7 +72,35 @@ Ask these one at a time. Do not send a questionnaire.
 - **What makes it correct?** If it shows a number, someone must be able to say whether that
   number is right. Write down how it is computed, then **produce it once from the live API
   before the spec closes**. See below.
+- **Does the request name a screen it should look like?** People describe appearance by
+  pointing: "the tiles from the Current Shift Dashboard". Write down what was named, exactly as
+  they said it, on the surface's row. See below.
+- **Where will this be hosted, and can it reach the platform from there?** Ask it here, while
+  the answer is still free. A hosting constraint found after the build is the most common way a
+  project stalls, and `deploy` is too late to learn that the only host available serves no
+  public origin. The answer does not have to be final, but it has to exist.
 - **How will they know it works?** One concrete scenario with real values.
+
+## A named screen is a requirement
+
+Record what the request pointed at on the surface's row: what was named, in the developer's
+words, and where it can be seen if that is already known. It is the only specification of
+appearance most requests carry, and it usually arrives in the first sentence.
+
+Do not spend the spec hunting for the image. `implement` looks for it, and the documentation
+does not cover every screen by the name a developer uses for it, so the search can end in
+asking them for a screenshot. What matters here is that the name they used survives in writing.
+
+**Prose about a screen is not the screen.** A documentation lookup returns a description, and a
+description is enough to conclude that a reference does not apply and to build something else.
+Carry the reference itself forward, not a summary of it.
+
+The spec's job here ends there. `implement` fetches the image before it writes the UI and
+compares the built surface against it at the gate, so a row naming a reference with no way to
+see it leaves that step guessing.
+
+Where nothing was named, write that down. An open appearance is a decision, and recording it
+distinguishes a question asked from a question skipped.
 
 ## Check the host can supply what the surface needs
 
@@ -254,7 +282,8 @@ being written at the end of a long conversation, when the column most easily los
 that proves a source answers.
 
 `SPEC.md` must contain both tables, and **no cell in either may be blank**. Two cells are
-filled with the literal word `pending` rather than an answer, and they are named below. The one
+filled with the literal word `pending` rather than an answer, and they are named below. A
+`Proven by` cell may read `owed`, on the condition given under the data-source table. The one
 exception is a spec that concluded nothing should be built, which has no surfaces table and is
 described above.
 
@@ -267,15 +296,21 @@ The skeleton carries both tables. What each column means is here.
 **Surfaces.** Status is one of `specified`, `built`, `deployed`, `blocked`. `implement` and `deploy` update
 the first three.
 
-**`blocked` means specified and known not to be buildable yet**, with the reason written
-beside it. Use it when the spec is settled and something outside the spec stops the build: a
+**`blocked` means specified and known not to be buildable yet**, with the reason in a note
+under the Surfaces table. Use it when the spec is settled and something outside the spec stops the build: a
 host capability that does not exist, a library version not yet released, an API that exposes
 no way to get a value the surface needs. Writing `specified` in that situation sends the next
 session into `implement` to build a surface that cannot work, and writing nothing loses the
 finding.
 
-Record what would have to change for it to become `specified` again. A `blocked` row with no
+Record what would have to change for it to become `specified` again. A `blocked` surface with no
 stated condition is indistinguishable from an abandoned one.
+
+**The Status cell holds the bare value and nothing else.** Write anything recorded about a
+status, the reason a surface is blocked or the gate line a surface was left unmet on, in a note
+under the Surfaces table that names the surface: `Operator log is blocked: <reason>. Cleared by
+<condition>.` `start` routes on the value in that cell, and a cell that reads `blocked, because`
+is not one of the four.
 
 **Write `pending` in the Template and Embedded columns, never an empty cell.** `implement`
 replaces both when it scaffolds, and the interface work reads them from there rather than
@@ -323,6 +358,17 @@ who closes it, in the way `pending` works in the surfaces table, rather than a g
 would have to exist. Resolving it later in `implement` means discovering it against a build that
 already assumed it.
 
+**A source this session could not prove counts the same.** When the gateway or the account is
+out of reach, nothing can be proven, and writing "not verified" into `Proven by` does not change
+that: a worded cell reads as proven, so `start` treats the spec as finished and the next session
+builds on the source. Write the literal word `owed` in its `Proven by` cell: a filled cell, like
+`pending`, that says the proof has not happened. Then mark every surface that reads the source
+`blocked`, not only the first one found, with a note naming the source and the call that would
+prove it. A surface left at `specified` beside a blocked one that reads the same source is
+routable to `implement`, and builds on it. So `owed` is valid only while every surface that
+reads the source is `blocked`. `start` sends a blocked surface back here and checks the blocker
+before anything else, which is the proof being run.
+
 An entities table, in the shape [domain-model.md](domain-model.md) describes. A deployment
 with no entities worth naming is rare enough to be worth saying out loud rather than
 assuming.
@@ -349,7 +395,8 @@ Naming a gap does not discharge this gate. A gap written into `SPEC.md` as an op
 is the single most common cause of a build that renders and then returns 404.
 
 The same applies to an unproven row. An empty `Proven by` cell is an unfinished spec, exactly
-like an empty `Source` cell, and `start` routes it back here.
+like an empty `Source` cell, and `start` routes it back here. So is `owed` on a source that a
+surface still at `specified` reads.
 
 ## Produce every number once, from the real API
 

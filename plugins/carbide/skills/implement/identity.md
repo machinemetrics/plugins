@@ -76,24 +76,37 @@ duplicate.
 
 #### The browser user
 
-The routes exist and are reachable with the `reporting` scope, but **none of them appear in the
-published REST reference**, so confirm the response against the running deployment before
-depending on its shape:
+**Read it from `/accounts/current`.** One route, named here so that nobody chooses between
+candidates. It is served by the current accounts API, needs the `reporting` scope, and is the
+route MachineMetrics' own services call to establish who is making a request. It is not in the
+published REST reference. What follows was confirmed against the production partition in
+September 2026, so treat it as a snapshot, and confirm it on GovCloud before depending on it
+there.
 
-| Route | What it returns |
-| :--- | :--- |
-| `/accounts-legacy/current-lite` | The current account with company settings, without the future time context and accessible-companies payloads. The one to prefer |
-| `/accounts-legacy/current` | The same account, with those heavier fields |
-| `/accounts/current` | The current account on the newer accounts API |
+Name that route and only that route when you describe the mechanism. Offering it alongside
+alternatives, as "this or that", reads as trying whichever answers, and it is.
 
-**Do not use the `/operator-view/`-prefixed variants.** They exist, they hit the same handlers,
-and they are gated on the OperatorView product permission rather than on a scope, so they are the
-host application's path and not a deployment's.
+**Do not use the `/accounts-legacy/` routes.** They return the same account from the legacy
+accounts API, and new code does not start on a legacy API. The `/operator-view/`-prefixed
+variants are the host application's own path, gated on the OperatorView product permission
+rather than on a scope, and are not a deployment's either.
 
-The response is the current account. OperatorView's own call declares `id`, `displayName`,
-`email`, `role` and `isRoot`, with the company nested under `company`. Expect that shape, confirm
-it against the running deployment, and **store the `id` rather than the display name or the
-email**, since a name is not stable and an email is not an identifier the platform promises.
+If `/accounts/current` does not answer on the running deployment, that is a finding to report,
+not a cue to try the others.
+
+**A caller authenticated with an API key is not a person.** For that caller the route returns
+the id `user-from-api-key` rather than an account. A deployment signs in as a user, so it should
+never see it, and a surface that stores that value has recorded a key rather than someone.
+
+The response is the current account: `id`, `displayName`, `email`, `role`, `isRoot` and
+`companyId`, with the company nested under `company`. **Store the `id` rather than the display
+name or the email**, since a name is not stable and an email is not an identifier the platform
+promises.
+
+**Read the fields the surface uses and keep nothing else.** The response carries far more than
+any surface needs, including the person's phone number and notification settings. Logging it,
+caching it or passing it whole into state copies personal data into places nobody meant it to
+reach.
 
 **Reach it with the library's `request` helper**, which carries the API credential and handles
 minting and expiry. It is the same call the deployment makes to Carbide Data and to any other
